@@ -8,10 +8,9 @@
 
 
 int main(int argc, char** argv) {
-	char * buf[64];
     int i,sum=0,n;
     char* cat;
-    int pid_pipe = open("clientes", O_WRONLY);
+    int pid_pipe = open("/Users/Ricardo/Desktop/clientes", O_WRONLY);
 
     for(i=1;argv[i]!=NULL;i++){
     	sum+=strlen(argv[i]);

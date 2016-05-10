@@ -14,14 +14,15 @@ void my_alarm(){
 int main(int argc, char** argv) {
     int i,sum=0,n;
     char* cat;
+    char* cat2;
     char buffer[128];
-    int pid_pipe = open("/Users/Ricardo/Desktop/clientes", O_WRONLY);
+    int pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_WRONLY);
 
     for(i=1;argv[i]!=NULL;i++){
     	sum+=strlen(argv[i]);
     }
 
-    cat = malloc ((sum+strlen(buffer))*sizeof(char));
+    cat = malloc (sum*sizeof(char));
 
     for(i=1;argv[i]!=NULL;i++){
     	strcat(cat,argv[i]);
@@ -30,9 +31,12 @@ int main(int argc, char** argv) {
 
     sprintf(buffer, "%d\n", getpid());
 
-    strcat(cat,buffer);
-    
-    write(pid_pipe, cat, strlen(cat));
+    cat2 = malloc((strlen(cat)+strlen(buffer))*sizeof(char));
+    strcpy(cat2,buffer);
+
+    strcat(cat2,cat);
+
+    write(pid_pipe, cat2, strlen(cat2));
     
     signal(SIGALRM,my_alarm);
     

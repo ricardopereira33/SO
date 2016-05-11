@@ -29,8 +29,12 @@ char** readln(char *buf,int *n,char* front){
 void backup(char* file){
     int pfd[2],n;
     char codigo[128];
-    char aux[128];
-    char** aux2;
+    char destino1[128],destino2[128],aux[128],aux2[128],aux3[128];
+    char** fileName;
+
+    strcpy(destino1,"/Users/Ricardo/Desktop/.Backup/data/");
+    strcpy(destino2,"/Users/Ricardo/Desktop/.Backup/metadata/");
+
     pipe(pfd);
     if(!fork()){
         close(pfd[0]);
@@ -48,16 +52,47 @@ void backup(char* file){
     fgets(codigo,128,stdin);
     codigo[strlen(codigo)-1]=0;
     
-    aux2=readln(codigo,&n,"  ");
-
-    strcpy(aux,"/Users/Ricardo/Desktop/.Backup/data/");    
-    strcat(aux,aux2[0]);
+    fileName=readln(codigo,&n,"  ");
     
     if(!fork()){
-        execlp("cp","cp",file,aux,NULL);
+        execlp("cp","cp",file,destino1,NULL);
         perror("error");
         _exit(1);
     }
+    wait(NULL);
+
+    strcpy(aux,destino1);
+    strcat(aux,file);
+
+    if(!fork()){
+        execlp("gzip","gzip",aux,NULL);
+        perror("error");
+        _exit(1);
+    }
+    wait(NULL);
+
+    strcat(aux,".gz");
+    strcpy(aux2,destino1);
+    strcat(aux2,fileName[0]);
+
+    if(!fork()){
+        execlp("mv","mv",aux,aux2,NULL);
+        perror("error");
+        _exit(1);
+    }
+    wait(NULL);
+
+    strcpy(aux3,destino2);
+    strcat(aux3,fileName[1]);
+
+    if(!fork()){
+        execlp("ln","ln",aux2,aux3,NULL);
+        perror("error");
+        _exit(1);
+    }
+    wait(NULL);
+
+
     //execlp("cp","cp","file","/Users/Ricardo/Desktop/.Backup/data/")
 }
 

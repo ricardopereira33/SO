@@ -8,41 +8,72 @@
 
 
 void my_alarm(){
-    printf("Acabou\n");
+    printf("Copiado\n");
+}
+
+void my_alarm2(){
+    printf("Recuperado\n");
+}
+
+void my_alarm3(){
+    printf("Saiu\n");
 }
 
 int main(int argc, char** argv) {
-    int i,sum=0,n;
+    int i,sum,comandSize,n;
     char* cat;
     char* cat2;
     char buffer[128];
     int pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_WRONLY);
-
-    for(i=1;argv[i]!=NULL;i++){
-    	sum+=strlen(argv[i]);
+    
+    switch(argc){
+        case 1: printf("Indique o comando que deseja realizar!\n");
+                return 1;
+        case 2: if(strcmp(argv[1],"exit")!=0){
+                    printf("Indentifique os ficheiros!\n");
+                    return 1;
+                }
     }
 
-    cat = malloc (sum*sizeof(char));
-
-    for(i=1;argv[i]!=NULL;i++){
-    	strcat(cat,argv[i]);
-    	strcat(cat,"\n");
-    }
-
+    comandSize=strlen(argv[1]);
     sprintf(buffer, "%d\n", getpid());
-
-    cat2 = malloc((strlen(cat)+strlen(buffer))*sizeof(char));
-    strcpy(cat2,buffer);
-
-    strcat(cat2,cat);
-
-    write(pid_pipe, cat2, strlen(cat2));
-    
     signal(SIGALRM,my_alarm);
-    
-    pause();
+    signal(SIGINT,my_alarm2);
+    signal(SIGQUIT,my_alarm3);
 
-   	free(cat);
+    for(i=1;argv[i]!=NULL;i++){
+        
+        if(i==1 && strcmp(argv[1],"exit")==0){
+            cat = malloc (comandSize*sizeof(char));
+            strcpy(cat,argv[1]);
+            strcat(cat,"\n");
+        }
+        else{
+    	    sum=comandSize;
+            sum+=strlen(argv[i]);
+        
+            if(i>2)free(cat);
+            cat=NULL;
+            cat = malloc (sum*sizeof(char));
+
+            strcpy(cat,argv[1]);
+            strcat(cat,"\n");
+            strcat(cat,argv[i]);
+    	    strcat(cat,"\n");
+        }
+        if(i>1 || (i==1 && strcmp(argv[1],"exit")==0)){
+            cat2 = malloc((strlen(cat)+strlen(buffer))*sizeof(char));
+            strcpy(cat2,buffer);
+            strcat(cat2,cat);
+        
+            write(pid_pipe, cat2, strlen(cat2));
+            free(cat2);
+            cat2=NULL;
+            if(i>1)printf("%s : ",argv[i]);
+            pause();
+        }
+    }
+    free(cat);
     close(pid_pipe);
     return 0;
 }

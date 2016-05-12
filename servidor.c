@@ -118,22 +118,21 @@ int main(int argc, char** argv) {
                 if(strcmp(buf2[1],"exit")==0){
                     sair=0;
                     //numeroUtilizadores--;
-                    kill(atoi(buf2[0]),SIGALRM);
+                    kill(atoi(buf2[0]),SIGQUIT);
                     break;
                 }
 
                 if(strcmp(buf2[1],"backup")==0){
                     backup(buf2[2]);
-                    printf("backup\n");
                     //numeroUtilizadores--;
                     kill(atoi(buf2[0]),SIGALRM);
                     /*mandar sinal*/
                 }
 
                 if(strcmp(buf2[1],"restore")==0){
-                    printf("restore\n");
+                    //printf("restore\n");
                     //numeroUtilizadores--;
-                    kill(atoi(buf2[0]),SIGALRM);
+                    kill(atoi(buf2[0]),SIGINT);
                     /*mandar sinal*/
                 }
 

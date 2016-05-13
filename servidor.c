@@ -8,7 +8,7 @@
 #include <signal.h>
 
 char** readln(char *buf,int *n,char* front){
-    char** buff=malloc(10*sizeof(char*));
+    char** buff=malloc(32*sizeof(char*));
     int i=0;
     char* token;
     token = strtok(buf, front);
@@ -23,6 +23,36 @@ char** readln(char *buf,int *n,char* front){
     buff[i]=NULL;
     *n=i-1;
     return buff;
+}
+
+int exist (char* file, char* dest){
+    int pfd[2],n,i;
+    char codigo[128];
+    char** aux;
+
+    pipe(pfd);
+    if(!fork()){
+        close(pfd[0]);
+        dup2(pfd[1],1);
+        execlp("ls","ls",dest,NULL);
+        perror("erro");
+        _exit(1);
+    }
+    wait(NULL);
+    
+    close(pfd[1]);
+    dup2(pfd[0],0);
+    close(pfd[0]);
+    
+    read(0,codigo,128);
+    codigo[strlen(codigo)]=0;
+    
+    aux=readln(codigo,&n,"\n");
+
+    for(i=0;aux[i]!=NULL;i++){
+        if(!strcmp(aux[i],file)) return 1;
+    }
+    return 0;
 }
 
 
@@ -53,47 +83,63 @@ void backup(char* file){
     codigo[strlen(codigo)-1]=0;
     
     fileName=readln(codigo,&n,"  ");
-    
-    if(!fork()){
-        execlp("cp","cp",file,destino1,NULL);
-        perror("error");
-        _exit(1);
+
+    if(exist(fileName[0],destino1) && !exist(fileName[1],destino2)){
+        
+        strcpy(aux2,destino1);
+        strcat(aux2,fileName[0]);
+
+        strcpy(aux3,destino2);
+        strcat(aux3,fileName[1]);
+
+        if(!fork()){
+            execlp("ln","ln",aux2,aux3,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
     }
-    wait(NULL);
+    else if(!exist(fileName[0],destino1)){
+        /*meter em auxiliar devia ficar melhor*/
+        if(!fork()){
+            execlp("cp","cp",file,destino1,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
 
-    strcpy(aux,destino1);
-    strcat(aux,file);
+        strcpy(aux,destino1);
+        strcat(aux,file);
 
-    if(!fork()){
-        execlp("gzip","gzip",aux,NULL);
-        perror("error");
-        _exit(1);
+        if(!fork()){
+            execlp("gzip","gzip",aux,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
+
+        strcat(aux,".gz");
+        strcpy(aux2,destino1);
+        strcat(aux2,fileName[0]);
+
+        if(!fork()){
+            execlp("mv","mv",aux,aux2,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
+
+        strcpy(aux3,destino2);
+        strcat(aux3,fileName[1]);
+
+        if(!fork()){
+            execlp("ln","ln",aux2,aux3,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
     }
-    wait(NULL);
-
-    strcat(aux,".gz");
-    strcpy(aux2,destino1);
-    strcat(aux2,fileName[0]);
-
-    if(!fork()){
-        execlp("mv","mv",aux,aux2,NULL);
-        perror("error");
-        _exit(1);
-    }
-    wait(NULL);
-
-    strcpy(aux3,destino2);
-    strcat(aux3,fileName[1]);
-
-    if(!fork()){
-        execlp("ln","ln",aux2,aux3,NULL);
-        perror("error");
-        _exit(1);
-    }
-    wait(NULL);
-
-
-    //execlp("cp","cp","file","/Users/Ricardo/Desktop/.Backup/data/")
+    else printf("Ja tem o backup realizado.\n");
 }
 
 int main(int argc, char** argv) {

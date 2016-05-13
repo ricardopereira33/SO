@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
     int i,sum,comandSize,n;
     char* cat;
     char* cat2;
+    char** cat3;
     char buffer[128];
     int pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_WRONLY);
     
@@ -69,7 +70,8 @@ int main(int argc, char** argv) {
             write(pid_pipe, cat2, strlen(cat2));
             free(cat2);
             cat2=NULL;
-            if(i>1)printf("%s : ",argv[i]);
+            
+            if(i>1) printf("%s : ",argv[i]);
             pause();
         }
     }

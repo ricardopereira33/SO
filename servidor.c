@@ -118,24 +118,26 @@ int main(int argc, char** argv) {
                 if(strcmp(buf2[1],"exit")==0){
                     sair=0;
                     //numeroUtilizadores--;
-                    kill(atoi(buf2[0]),SIGQUIT);
+                    n=kill(atoi(buf2[0]),SIGQUIT);
+                    if(n==-1) printf("Erro\n");
                     break;
                 }
 
                 if(strcmp(buf2[1],"backup")==0){
                     backup(buf2[2]);
                     //numeroUtilizadores--;
-                    kill(atoi(buf2[0]),SIGALRM);
+                    n=kill(atoi(buf2[0]),SIGALRM);
                     /*mandar sinal*/
                 }
 
                 if(strcmp(buf2[1],"restore")==0){
-                    //printf("restore\n");
+                    usleep(100);
+                    printf("restore\n");
                     //numeroUtilizadores--;
-                    kill(atoi(buf2[0]),SIGINT);
+                    n=kill(atoi(buf2[0]),SIGINT);
                     /*mandar sinal*/
                 }
-
+                if(n==-1) printf("Erro\n");
                 //execvp(buf2[0],buf2);
                 //write(pid_log, buf, n);
 

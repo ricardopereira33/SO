@@ -20,10 +20,9 @@ void my_alarm3(){
 }
 
 int main(int argc, char** argv) {
-    int i,sum,comandSize,n;
+    int i,sum,comandSize;
     char* cat;
     char* cat2;
-    char** cat3;
     char buffer[128];
     int pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_WRONLY);
     

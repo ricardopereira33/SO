@@ -142,7 +142,7 @@ void backup(char* file){
     else printf("Ja tem o backup realizado.\n");
 }
 
-int main(int argc, char** argv) {
+int main() {
    	
     if(!fork()){
         mkfifo("/Users/Ricardo/Desktop/.Backup/clientes",0666);
@@ -150,20 +150,20 @@ int main(int argc, char** argv) {
         char bufcopy[128];
         char** buf2;
     	int n,i,pid_pipe;
-        int numeroUtilizadores=0;
+        /*int numeroUtilizadores=0;*/
     	int sair=1;
         
         while(sair){
             pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_RDONLY);
     	    while ( (n = read(pid_pipe, buf, 128))>0 ){
                 buf[n]=0;
-                //numeroUtilizadores++;
+                /*numeroUtilizadores++;*/
                 strcpy(bufcopy,buf);
                 buf2=readln(bufcopy,&i,"\n");
 
                 if(strcmp(buf2[1],"exit")==0){
                     sair=0;
-                    //numeroUtilizadores--;
+                    /*numeroUtilizadores--;*/
                     n=kill(atoi(buf2[0]),SIGQUIT);
                     if(n==-1) printf("Erro\n");
                     break;
@@ -171,22 +171,18 @@ int main(int argc, char** argv) {
 
                 if(strcmp(buf2[1],"backup")==0){
                     backup(buf2[2]);
-                    //numeroUtilizadores--;
+                    /*numeroUtilizadores--;*/
                     n=kill(atoi(buf2[0]),SIGALRM);
-                    /*mandar sinal*/
                 }
 
                 if(strcmp(buf2[1],"restore")==0){
                     usleep(100);
                     printf("restore\n");
-                    //numeroUtilizadores--;
+                    /*numeroUtilizadores--;*/
                     n=kill(atoi(buf2[0]),SIGINT);
-                    /*mandar sinal*/
                 }
                 if(n==-1) printf("Erro\n");
-                //execvp(buf2[0],buf2);
-                //write(pid_log, buf, n);
-
+               
            }
            close(pid_pipe);
         }   

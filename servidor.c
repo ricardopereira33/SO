@@ -62,8 +62,10 @@ void backup(char* file){
     char destino1[128],destino2[128],aux[128],aux2[128],aux3[128];
     char** fileName;
 
-    strcpy(destino1,"/Users/Ricardo/Desktop/.Backup/data/");
-    strcpy(destino2,"/Users/Ricardo/Desktop/.Backup/metadata/");
+    strcpy(destino1,getenv("HOME"));
+    strcat(destino1,"/.Backup/data/");
+    strcpy(destino2,getenv("HOME"));
+    strcat(destino2,"/.Backup/metadata/");
 
     pipe(pfd);
     if(!fork()){
@@ -145,7 +147,11 @@ void backup(char* file){
 int main() {
    	
     if(!fork()){
-        mkfifo("/Users/Ricardo/Desktop/.Backup/clientes",0666);
+        char destino[128]; 
+        strcpy(destino,getenv("HOME"));
+        strcat(destino,"/.Backup/pipe");
+        mkfifo(destino,0666);
+
     	char buf[128];
         char bufcopy[128];
         char** buf2;
@@ -154,7 +160,7 @@ int main() {
     	int sair=1;
         
         while(sair){
-            pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_RDONLY);
+            pid_pipe = open(destino, O_RDONLY);
     	    while ( (n = read(pid_pipe, buf, 128))>0 ){
                 buf[n]=0;
                 /*numeroUtilizadores++;*/

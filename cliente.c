@@ -24,7 +24,11 @@ int main(int argc, char** argv) {
     char* cat;
     char* cat2;
     char buffer[128];
-    int pid_pipe = open("/Users/Ricardo/Desktop/.Backup/clientes", O_WRONLY);
+    char destino[128]; 
+    strcpy(destino,getenv("HOME"));
+    strcat(destino,"/.Backup/pipe");
+
+    int pid_pipe = open(destino, O_WRONLY);
     
     switch(argc){
         case 1: printf("Indique o comando que deseja realizar!\n");

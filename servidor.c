@@ -7,6 +7,20 @@
 #include <unistd.h>
 #include <signal.h>
 
+void criaPastas (){
+    char destino2[128];
+    char destino3[128]; 
+
+    strcpy(destino2,getenv("HOME"));
+    strcat(destino2,"/.Backup");
+    mkdir(destino2,0777);
+    strcpy(destino3,destino2);
+    strcat(destino2,"/data");
+    mkdir(destino2,0777);
+    strcat(destino3,"/metadata");
+    mkdir(destino3,0777);
+}
+
 char** readln(char *buf,int *n,char* front){
     char** buff=malloc(32*sizeof(char*));
     int i=0;
@@ -145,9 +159,11 @@ void backup(char* file){
 }
 
 int main() {
-   	
+    
+    criaPastas();
+    
     if(!fork()){
-        char destino[128]; 
+        char destino[128];
         strcpy(destino,getenv("HOME"));
         strcat(destino,"/.Backup/pipe");
         mkfifo(destino,0666);

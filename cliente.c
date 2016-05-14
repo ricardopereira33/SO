@@ -7,16 +7,20 @@
 #include <unistd.h>
 
 
-void my_alarm(){
+void alarmBackup(){
     printf("Copiado\n");
 }
 
-void my_alarm2(){
+void alarmRestore(){
     printf("Recuperado\n");
 }
 
-void my_alarm3(){
+void alarmExit(){
     printf("Saiu\n");
+}
+
+void alarmErro(){
+    printf("Erro\n");
 }
 
 int main(int argc, char** argv) {
@@ -41,9 +45,10 @@ int main(int argc, char** argv) {
 
     comandSize=strlen(argv[1]);
     sprintf(buffer, "%d\n", getpid());
-    signal(SIGALRM,my_alarm);
-    signal(SIGINT,my_alarm2);
-    signal(SIGQUIT,my_alarm3);
+    signal(SIGALRM,alarmBackup);
+    signal(SIGINT,alarmRestore);
+    signal(SIGQUIT,alarmExit);
+    signal(SIGHUP,alarmErro);
 
     for(i=1;argv[i]!=NULL;i++){
         

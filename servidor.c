@@ -158,10 +158,43 @@ void backup(char* file){
     else printf("Ja tem o backup realizado.\n");
 }
 
+void restore (char* file){
+    char destino[128];
+    char fileZip[128];
+
+    strcpy(destino,getenv("HOME"));
+    strcat(destino,"/.Backup/metadata/");
+
+    if(!fork()){
+        strcat(destino,file);
+        execlp("cp","cp",destino,file,NULL);
+        perror("erro");
+        _exit(1);
+    }
+    wait(NULL);
+
+    strcpy(fileZip,file);
+    strcat(fileZip,".gz");
+
+    if(!fork()){
+            execlp("mv","mv",file,fileZip,NULL);
+            perror("error");
+            _exit(1);
+    }
+    wait(NULL);
+
+    if(!fork()){
+            execlp("gunzip","gunzip",fileZip,NULL);
+            perror("error");
+            _exit(1);
+    }
+    wait(NULL);
+}
+
 int main() {
     
     criaPastas();
-    
+
     if(!fork()){
         char destino[128];
         strcpy(destino,getenv("HOME"));
@@ -198,19 +231,17 @@ int main() {
                 }
 
                 if(strcmp(buf2[1],"restore")==0){
-                    usleep(100);
-                    printf("restore\n");
+                    /*usleep(100);*/
+                    restore(buf2[2]);
                     /*numeroUtilizadores--;*/
                     n=kill(atoi(buf2[0]),SIGINT);
                 }
-                if(n==-1) printf("Erro\n");
+                if(n==-1) kill(atoi(buf2[0]),SIGHUP);
                
            }
            close(pid_pipe);
         }   
-
     	_exit(0);
     	}
-
     return 0;
 }

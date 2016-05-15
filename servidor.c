@@ -7,19 +7,90 @@
 #include <unistd.h>
 #include <signal.h>
 
+#define MAX 5
+#define pid_index 0
+#define command_index 1
+#define file_index 2
+
+int numComand=0;
+
+/**
+  * A função fim descrementa a variavél global, numComand. Esta função é utilizada, para alterar um sinal, que indica quando um processo tenha acado, 
+  * o que decrementa desta foram o numComand.
+  *
+  */
+
+void fim (){
+    numComand--;
+}
+
+/**
+  * A função criaPastas, é a função responsável por criar as pastas onde as cópias de seguranças ( backup's ) vão ficar armazenadas. 
+  *
+  */
+
 void criaPastas (){
     char destino2[128];
     char destino3[128]; 
+   /* int pfd[2];
+    char codigo[128];*/
 
     strcpy(destino2,getenv("HOME"));
     strcat(destino2,"/.Backup");
-    mkdir(destino2,0777);
-    strcpy(destino3,destino2);
-    strcat(destino2,"/data");
-    mkdir(destino2,0777);
-    strcat(destino3,"/metadata");
-    mkdir(destino3,0777);
+
+    /*if(!fork()){
+        pipe(pfd);
+        if(!fork()){
+            close(pfd[0]);
+            dup2(pfd[1],1);
+            execlp("find","find",destino2,NULL);
+            perror("erro");
+            _exit(1);
+        }
+        wait(NULL);
+    
+        close(pfd[1]);
+        dup2(pfd[0],0);
+        close(pfd[0]);
+
+        read(0,codigo,128);
+    
+        if(strlen(codigo)!=0){
+            if(!fork()){
+                execlp("mkdir","mkdir",destino2,NULL);
+                perror("error");
+                _exit(1);
+            }
+            wait(NULL);*/
+            mkdir(destino2,0777);
+            strcpy(destino3,destino2);
+            strcat(destino2,"/data");
+            /*if(!fork()){
+                execlp("mkdir","mkdir",destino2,NULL);
+                perror("error");
+                _exit(1);
+            }
+            wait(NULL);*/
+            mkdir(destino2,0777);
+            strcat(destino3,"/metadata");
+            /*if(!fork()){
+                execlp("mkdir","mkdir",destino3,NULL);
+                perror("error");
+                _exit(1);
+            }
+            wait(NULL);*/
+            mkdir(destino3,0777);
+     /*       }
+    _exit(1);
+    }
+    wait(NULL);*/
 }
+
+/**
+  * A função readln é uma função auxiliar, que dado uma String, separa-a em várias Strings, criando uma lista com essas Strings. A String original, é 
+  * separada na porção de String equivalente a front.
+  *
+  */
 
 char** readln(char *buf,int *n,char* front){
     char** buff=malloc(32*sizeof(char*));
@@ -38,6 +109,11 @@ char** readln(char *buf,int *n,char* front){
     *n=i-1;
     return buff;
 }
+
+/**
+  * A função exist verifica se um determinado ficheiro existe numa certa directoria. A função recorre ao auxilio do comando ls.
+  *
+  */
 
 int exist (char* file, char* dest){
     int pfd[2],n,i;
@@ -69,6 +145,10 @@ int exist (char* file, char* dest){
     return 0;
 }
 
+/**
+  * A função backup, uma das principais do programa, realiza a cópia de segurança de um ficheiro. Para isso, recorre aos comandos sha1sum,gzip,cp,mv e ln. 
+  *
+  */
 
 void backup(char* file){
     int pfd[2],n;
@@ -158,6 +238,11 @@ void backup(char* file){
     else printf("Ja tem o backup realizado.\n");
 }
 
+/**
+  * A função restore, uma das principais do programa, recupera ficheiros que tenham cópia de segurança.
+  *
+  */
+
 void restore (char* file){
     char destino[128];
     char fileZip[128];
@@ -191,6 +276,19 @@ void restore (char* file){
     wait(NULL);
 }
 
+/*void delete (char* file){
+
+}
+
+void gc (){
+
+}*/
+
+/**
+  * A main do programa, que chama todas as funcões, e é responsável por manter o programa a correr em background.
+  *
+  */
+
 int main() {
     
     criaPastas();
@@ -205,43 +303,53 @@ int main() {
         char bufcopy[128];
         char** buf2;
     	int n,i,pid_pipe;
-        /*int numeroUtilizadores=0;*/
-    	int sair=1;
-        
-        while(sair){
-            pid_pipe = open(destino, O_RDONLY);
-    	    while ( (n = read(pid_pipe, buf, 128))>0 ){
-                buf[n]=0;
-                /*numeroUtilizadores++;*/
-                strcpy(bufcopy,buf);
-                buf2=readln(bufcopy,&i,"\n");
 
-                if(strcmp(buf2[1],"exit")==0){
-                    sair=0;
-                    /*numeroUtilizadores--;*/
-                    n=kill(atoi(buf2[0]),SIGQUIT);
-                    if(n==-1) printf("Erro\n");
-                    break;
-                }
+        signal(SIGINT,fim);
 
-                if(strcmp(buf2[1],"backup")==0){
-                    backup(buf2[2]);
-                    /*numeroUtilizadores--;*/
-                    n=kill(atoi(buf2[0]),SIGALRM);
-                }
+        while(1){
+            if(numComand >= MAX){
+                pause();
+            }
+            else {
+                pid_pipe = open(destino, O_RDONLY);
+                /*devo ter while ou if????*/
+    	        while ( (n = read(pid_pipe, buf, 128))>0 ){
+                    if(!fork()){
+                    numComand++;
+                    buf[n]=0;
+                    strcpy(bufcopy,buf);
+                    buf2=readln(bufcopy,&i,"\n");
 
-                if(strcmp(buf2[1],"restore")==0){
-                    /*usleep(100);*/
-                    restore(buf2[2]);
-                    /*numeroUtilizadores--;*/
-                    n=kill(atoi(buf2[0]),SIGINT);
-                }
-                if(n==-1) kill(atoi(buf2[0]),SIGHUP);
-               
-           }
+                    if(strcmp(buf2[command_index],"backup")==0){
+                        backup(buf2[file_index]);
+                        /*sleep(3);*/
+                        n=kill(atoi(buf2[pid_index]),SIGALRM);
+                    }
+
+                    if(strcmp(buf2[command_index],"restore")==0){
+                        restore(buf2[file_index]);
+                        n=kill(atoi(buf2[pid_index]),SIGINT);
+                    }
+
+                    if(strcmp(buf2[command_index],"delete")==0){
+                        printf("delete\n");
+                    }
+
+                    if(strcmp(buf2[command_index],"gc")==0){
+                        printf("gc\n");
+                    }
+
+                    if(n==-1) kill(atoi(buf2[pid_index]),SIGHUP);
+                    
+                    kill(getppid(),SIGINT);
+                    _exit(0);
+            }
+          }
            close(pid_pipe);
-        }   
-    	_exit(0);
-    	}
+          }
+        }
+        /*fazer wait's*/  
+    	/*_exit(0);*/
+    }
     return 0;
 }

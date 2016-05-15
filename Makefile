@@ -15,5 +15,8 @@ clean:
 	rm -f sobusrv
 	rm -f sobucli
 
+exit:
+	pkill -f ./sobusrv 
+
 
 #  -pedantic -Wunused-parameter -Wall -Wextra 

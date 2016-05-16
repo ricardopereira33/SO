@@ -150,7 +150,7 @@ int exist (char* file, char* dest){
   *
   */
 
-void backup(char* file){
+int backup(char* file){
     int pfd[2],n;
     char codigo[128];
     char destino1[128],destino2[128],aux[128],aux2[128],aux3[128];
@@ -194,6 +194,7 @@ void backup(char* file){
             _exit(1);
         }
         wait(NULL);
+        return 1;
     }
     else if(!exist(fileName[0],destino1)){
         /*meter em auxiliar devia ficar melhor*/
@@ -234,8 +235,10 @@ void backup(char* file){
             _exit(1);
         }
         wait(NULL);
+        return 1;
     }
-    else printf("Ja tem o backup realizado.\n");
+    else return 0;
+
 }
 
 /**
@@ -276,11 +279,24 @@ void restore (char* file){
     wait(NULL);
 }
 
-/*void delete (char* file){
+void delete (char* file){
+    char destino[128];
+    strcpy(destino,getenv("HOME"));
+    strcat(destino,"/.Backup/metadata/");
 
+    if(exist(file,destino)){
+        strcat(destino,file);
+        if(!fork()){
+            execlp("rm","rm",destino,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
+    }
+    else printf("Não existe o ficheiro %s.\n",file);
 }
 
-void gc (){
+/*void gc (){
 
 }*/
 
@@ -302,7 +318,7 @@ int main() {
     	char buf[128];
         char bufcopy[128];
         char** buf2;
-    	int n,i,pid_pipe;
+    	int n,i,info,pid_pipe;
 
         signal(SIGINT,fim);
 
@@ -321,9 +337,11 @@ int main() {
                     buf2=readln(bufcopy,&i,"\n");
 
                     if(strcmp(buf2[command_index],"backup")==0){
-                        backup(buf2[file_index]);
+                        info=backup(buf2[file_index]);
                         /*sleep(3);*/
-                        n=kill(atoi(buf2[pid_index]),SIGALRM);
+                        if(info)
+                            n=kill(atoi(buf2[pid_index]),SIGALRM);
+                        else n=kill(atoi(buf2[pid_index]),SIGUSR1);
                     }
 
                     if(strcmp(buf2[command_index],"restore")==0){
@@ -332,7 +350,8 @@ int main() {
                     }
 
                     if(strcmp(buf2[command_index],"delete")==0){
-                        printf("delete\n");
+                        delete(buf2[file_index]);
+                        n=kill(atoi(buf2[pid_index]),SIGUSR2);
                     }
 
                     if(strcmp(buf2[command_index],"gc")==0){

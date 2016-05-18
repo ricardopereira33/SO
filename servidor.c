@@ -7,12 +7,15 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include "info.h"
+
 #define MAX 5
 #define pid_index 0
 #define command_index 1
 #define file_index 2
+#define BUFFER_SIZE 128
 
-int numComand=0;
+int numComand = 0;
 
 /**
   * A função fim descrementa a variavél global, numComand. Esta função é utilizada, para alterar um sinal, que indica quando um processo tenha acado, 
@@ -21,6 +24,7 @@ int numComand=0;
   */
 
 void fim (){
+    printf("sdvsd\n");
     numComand--;
 }
 
@@ -30,60 +34,20 @@ void fim (){
   */
 
 void criaPastas (){
-    char destino2[128];
-    char destino3[128]; 
-   /* int pfd[2];
-    char codigo[128];*/
 
-    strcpy(destino2,getenv("HOME"));
-    strcat(destino2,"/.Backup");
+    char backup_data[BUFFER_SIZE];
+    char metadata[BUFFER_SIZE]; 
+  
+    strcpy(backup_data,getenv("HOME"));
+    strcat(backup_data,"/.Backup");
+    mkdir(backup_data,0777);
 
-    /*if(!fork()){
-        pipe(pfd);
-        if(!fork()){
-            close(pfd[0]);
-            dup2(pfd[1],1);
-            execlp("find","find",destino2,NULL);
-            perror("erro");
-            _exit(1);
-        }
-        wait(NULL);
+    strcpy(metadata,backup_data);
+    strcat(backup_data,"/data");
+    mkdir(backup_data,0777);
     
-        close(pfd[1]);
-        dup2(pfd[0],0);
-        close(pfd[0]);
-
-        read(0,codigo,128);
-    
-        if(strlen(codigo)!=0){
-            if(!fork()){
-                execlp("mkdir","mkdir",destino2,NULL);
-                perror("error");
-                _exit(1);
-            }
-            wait(NULL);*/
-            mkdir(destino2,0777);
-            strcpy(destino3,destino2);
-            strcat(destino2,"/data");
-            /*if(!fork()){
-                execlp("mkdir","mkdir",destino2,NULL);
-                perror("error");
-                _exit(1);
-            }
-            wait(NULL);*/
-            mkdir(destino2,0777);
-            strcat(destino3,"/metadata");
-            /*if(!fork()){
-                execlp("mkdir","mkdir",destino3,NULL);
-                perror("error");
-                _exit(1);
-            }
-            wait(NULL);*/
-            mkdir(destino3,0777);
-     /*       }
-    _exit(1);
-    }
-    wait(NULL);*/
+    strcat(metadata,"/metadata");
+    mkdir(metadata,0777);
 }
 
 /**
@@ -118,7 +82,7 @@ char** readln(char *buf,int *n,char* front){
 int exist (char* file, char* dest){
     int pfd[2],n,i;
     char codigo[128];
-    char** aux;
+    char** lista_ficheiros;
 
     pipe(pfd);
     if(!fork()){
@@ -137,10 +101,10 @@ int exist (char* file, char* dest){
     read(0,codigo,128);
     codigo[strlen(codigo)]=0;
     
-    aux=readln(codigo,&n,"\n");
+    lista_ficheiros=readln(codigo,&n,"\n");
 
-    for(i=0;aux[i]!=NULL;i++){
-        if(!strcmp(aux[i],file)) return 1;
+    for(i=0;lista_ficheiros[i]!=NULL;i++){
+        if(!strcmp(lista_ficheiros[i],file)) return 1;
     }
     return 0;
 }
@@ -153,13 +117,14 @@ int exist (char* file, char* dest){
 int backup(char* file){
     int pfd[2],n;
     char codigo[128];
-    char destino1[128],destino2[128],aux[128],aux2[128],aux3[128];
+    char data[BUFFER_SIZE],metadata[BUFFER_SIZE];
+    char destino_ficheiro_data[BUFFER_SIZE],destino_codigo[BUFFER_SIZE],destino_ficheiro_metadata[BUFFER_SIZE];
     char** fileName;
 
-    strcpy(destino1,getenv("HOME"));
-    strcat(destino1,"/.Backup/data/");
-    strcpy(destino2,getenv("HOME"));
-    strcat(destino2,"/.Backup/metadata/");
+    strcpy(data,getenv("HOME"));
+    strcat(data,"/.Backup/data/");
+    strcpy(metadata,getenv("HOME"));
+    strcat(metadata,"/.Backup/metadata/");
 
     pipe(pfd);
     if(!fork()){
@@ -175,70 +140,37 @@ int backup(char* file){
     dup2(pfd[0],0);
     close(pfd[0]);
     
-    fgets(codigo,128,stdin);
+    /* output do sha1sum */
+    read(0,codigo,128);
     codigo[strlen(codigo)-1]=0;
-    
     fileName=readln(codigo,&n,"  ");
 
-    if(exist(fileName[0],destino1) && !exist(fileName[1],destino2)){
-        
-        strcpy(aux2,destino1);
-        strcat(aux2,fileName[0]);
+    strcpy(destino_ficheiro_data,data);
+    strcat(destino_ficheiro_data,file);
 
-        strcpy(aux3,destino2);
-        strcat(aux3,fileName[1]);
-
-        if(!fork()){
-            execlp("ln","ln",aux2,aux3,NULL);
-            perror("error");
-            _exit(1);
+    if(!fork()){
+           execlp("gzip","gzip",destino_ficheiro_data,NULL);
+           perror("error");
+           _exit(1);
         }
-        wait(NULL);
-        return 1;
+    wait(NULL);
+
+    strcat(destino_ficheiro_data,".gz");
+    strcpy(destino_codigo,data);
+    strcat(destino_codigo,fileName[0]);
+
+    rename(destino_ficheiro_data,destino_codigo);
+
+    strcpy(destino_ficheiro_metadata,metadata);
+    strcat(destino_ficheiro_metadata,fileName[1]);
+
+    if(!fork()){
+        execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
+        perror("error");
+        _exit(1);
     }
-    else if(!exist(fileName[0],destino1)){
-        /*meter em auxiliar devia ficar melhor*/
-        if(!fork()){
-            execlp("cp","cp",file,destino1,NULL);
-            perror("error");
-            _exit(1);
-        }
-        wait(NULL);
-
-        strcpy(aux,destino1);
-        strcat(aux,file);
-
-        if(!fork()){
-            execlp("gzip","gzip",aux,NULL);
-            perror("error");
-            _exit(1);
-        }
-        wait(NULL);
-
-        strcat(aux,".gz");
-        strcpy(aux2,destino1);
-        strcat(aux2,fileName[0]);
-
-        if(!fork()){
-            execlp("mv","mv",aux,aux2,NULL);
-            perror("error");
-            _exit(1);
-        }
-        wait(NULL);
-
-        strcpy(aux3,destino2);
-        strcat(aux3,fileName[1]);
-
-        if(!fork()){
-            execlp("ln","ln",aux2,aux3,NULL);
-            perror("error");
-            _exit(1);
-        }
-        wait(NULL);
-        return 1;
-    }
-    else return 0;
-
+    wait(NULL);
+    return 1;
 }
 
 /**
@@ -305,70 +237,68 @@ void delete (char* file){
   *
   */
 
-int main() {
+int main(){
     
     criaPastas();
 
     if(!fork()){
-        char destino[128];
-        strcpy(destino,getenv("HOME"));
-        strcat(destino,"/.Backup/pipe");
-        mkfifo(destino,0666);
+        char destino_pipe[BUFFER_SIZE]; /* destino do pipe */
+        char destino_file[BUFFER_SIZE]; /* destino para onde vai o ficheiro */
+        char destino_data[BUFFER_SIZE]; /* pasta onde estão os ficheiros */
+        strcpy(destino_pipe,getenv("HOME"));
+        strcat(destino_pipe,"/.Backup/pipe");
+        
+        mkfifo(destino_pipe,0666);
+    	int n,i,pid_pipe,idFile;
 
-    	char buf[128];
-        char bufcopy[128];
-        char** buf2;
-    	int n,i,info,pid_pipe;
 
         signal(SIGINT,fim);
 
+        INFO info = initInfo();
+
+        strcpy(destino_data, getenv("HOME"));
+        strcat(destino_data,"/.Backup/data");
+        pid_pipe = open(destino_pipe,O_RDONLY);
         while(1){
-            if(numComand >= MAX){
-                pause();
-            }
-            else {
-                pid_pipe = open(destino, O_RDONLY);
-                /*devo ter while ou if????*/
-    	        while ( (n = read(pid_pipe, buf, 128))>0 ){
-                    if(!fork()){
-                    numComand++;
-                    buf[n]=0;
-                    strcpy(bufcopy,buf);
-                    buf2=readln(bufcopy,&i,"\n");
+            
+            n = read(pid_pipe,info,sizeof(*info));
 
-                    if(strcmp(buf2[command_index],"backup")==0){
-                        info=backup(buf2[file_index]);
-                        /*sleep(3);*/
-                        if(info)
-                            n=kill(atoi(buf2[pid_index]),SIGALRM);
-                        else n=kill(atoi(buf2[pid_index]),SIGUSR1);
+            if(n!=0){  
+                if(info->fim){
+                sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
+                idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
+                write(idFile,info->Ficheiro,info->tamanho);
+                close(idFile);
+                }
+                else{
+
+                    if(strcmp(info->comando,"backup")==0){
+                        i=backup(info->NomeFicheiro);
+                        if(i)
+                            n=kill(info->pidProcesso,SIGALRM);
+                        else n=kill(info->pidProcesso,SIGUSR1);
                     }
 
-                    if(strcmp(buf2[command_index],"restore")==0){
-                        restore(buf2[file_index]);
-                        n=kill(atoi(buf2[pid_index]),SIGINT);
+                    if(strcmp(info->comando,"restore")==0){
+                        restore(info->NomeFicheiro);
+                        n=kill(info->pidProcesso,SIGINT);
                     }
 
-                    if(strcmp(buf2[command_index],"delete")==0){
-                        delete(buf2[file_index]);
-                        n=kill(atoi(buf2[pid_index]),SIGUSR2);
+                    if(strcmp(info->comando,"delete")==0){
+                        delete(info->NomeFicheiro);
+                        n=kill(info->pidProcesso,SIGUSR2);
                     }
 
-                    if(strcmp(buf2[command_index],"gc")==0){
+                    if(strcmp(info->comando,"gc")==0){
                         printf("gc\n");
                     }
 
-                    if(n==-1) kill(atoi(buf2[pid_index]),SIGHUP);
-                    
-                    kill(getppid(),SIGINT);
-                    _exit(0);
+                    if(n==-1) kill(info->pidProcesso,SIGHUP);
+                }
             }
-          }
-           close(pid_pipe);
-          }
+            
+        /*    close(pid_pipe); */
         }
-        /*fazer wait's*/  
-    	/*_exit(0);*/
     }
     return 0;
 }

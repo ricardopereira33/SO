@@ -5,6 +5,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
+
+#include "info.h"
 
 #define command_index 1
 
@@ -138,69 +141,59 @@ int verificaCmd(char** cmd, int argc){
   */
 
 int main(int argc, char** argv) {
-	int i,sum,comandSize;
-	char* cat=NULL;
-	char* cat2;
-	char buffer[128];
+	int i,tamanho;
+	char buffer[4096];
 	char destino[128]; 
 	strcpy(destino,getenv("HOME"));
 	strcat(destino,"/.Backup/pipe");
 
    int pid_pipe = open(destino, O_WRONLY);
-	
+
+   INFO info = initInfo();
+
 	/*Casos invalidos*/
 	if( strcmp(argv[command_index],"restore")!=0 && !verificaCmd(argv+1,argc) ){
 		return 1;
 	}
-
-	comandSize=strlen(argv[1]);
 	
 	signal(SIGALRM,alarmBackup);
 	signal(SIGINT,alarmRestore);
-	signal(SIGHUP,alarmErro);
+	signal(SIGHUP,alarmErro); 
 	signal(SIGUSR1,alarmVoid);
 	signal(SIGUSR2,alarmDelete);
 
 	for(i=2;argv[i]!=NULL;i++){
-		/*if(!fork()){*/
-		   
-		   sum=comandSize;
-		   sum+=strlen(argv[i]);
-		
-			if(i>2)
-				free(cat);
-			cat=NULL;
-			cat = malloc (sum*sizeof(char));
-
-			strcpy(cat,argv[command_index]);
-			strcat(cat,"\n");
-
+		if(!fork()){
 			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
-				strcat(cat,argv[i]);
-				strcat(cat,"\n"); 
-		
-				sprintf(buffer, "%d\n", getpid());
-				cat2 = malloc((strlen(cat)+strlen(buffer))*sizeof(char));
-				strcpy(cat2,buffer);
-				strcat(cat2,cat);
-		
-				write(pid_pipe, cat2, strlen(cat2));
-				free(cat2);
-				cat2=NULL;
-			
+				int idFile = open(argv[i],O_RDONLY);
+				
+				while((tamanho=read(idFile,buffer,4096))>0){
+					memcpy(info->Ficheiro,buffer,tamanho);
+					info->tamanho=tamanho;
+					info->pidProcesso=getpid();
+					strcpy(info->NomeFicheiro,argv[i]);
+					strcpy(info->comando,argv[1]);
+					info->fim=1;
+					write(pid_pipe, info, sizeof(*info));
+				}
+				info->fim=0;
+				info->tamanho=0;
+				info->pidProcesso=getpid();
+				strcpy(info->NomeFicheiro,argv[i]);
+				strcpy(info->comando,argv[1]);
+				write(pid_pipe,info,sizeof(*info));
+				
 				printf("%s : ",argv[i]);
 				pause();
 			}
 			else printf("Ficheiro %s não existe.\n",argv[i]);
-
-		   /* _exit(0);
-		}*/
+			_exit(0);
+		}
 	}
 
-	/*for(i=2;argv[i]!=NULL;i++){
+	for(i=2;argv[i]!=NULL;i++)
 		wait(NULL);
-	}*/
-	free(cat);
+
 	close(pid_pipe);
 	return 0;
 }

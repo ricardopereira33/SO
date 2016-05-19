@@ -176,11 +176,12 @@ int main(int argc, char** argv) {
 	int i,tamanho,idFile,idFile2,tamanho_restore,vazio;
 	char buffer[4096];
 	char destino[BUFFER_SIZE]; 
-	char destino_pipe2[BUFFER_SIZE];
+	char destino_pipeAll[BUFFER_SIZE];
 	strcpy(destino,getenv("HOME"));
 	strcat(destino,"/.Backup/pipe");
-	strcpy(destino_pipe2,getenv("HOME"));
-	strcat(destino_pipe2,"/.Backup/pipe2");
+
+	strcpy(destino_pipeAll,getenv("HOME"));
+	strcat(destino_pipeAll,"/.Backup/");
 
 	/*Casos invalidos*/
 	if(argc==1) {
@@ -193,10 +194,8 @@ int main(int argc, char** argv) {
 	}
 
    	int pid_pipe = open(destino, O_WRONLY);
-   	int pid_pipe2;
 
-   	INFO info = initInfo();
-	INFO info2 = initInfo();
+   	INFO info; 
 
 	signal(SIGALRM,alarmBackup);
 	signal(SIGINT,alarmRestore);
@@ -205,13 +204,31 @@ int main(int argc, char** argv) {
 	signal(SIGUSR2,alarmDelete);
 	signal(SIGFPE,alarmVoid2);
 
+	char pipName[BUFFER_SIZE];
+	int pid_pipe_fork;
+
 	for(i=2;argv[i]!=NULL;i++){
-		/*if(!fork()){*/
+		
+		if(!fork()){
+			info = initInfo(); 
+			INFO_PIPE infoPipe= initInfoPipe();
+			sprintf(pipName,"%d",getpid());
+			strcat(destino_pipeAll,pipName);
+			strcpy(infoPipe->pipeName,destino_pipeAll);
+			strcpy(infoPipe->comando,argv[command_index]);
+			strcpy(infoPipe->fileName,argv[i]);
+			mkfifo(destino_pipeAll,0666);
+
 			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
 
 				if(strcmp(argv[command_index],"backup")==0){
 
+					write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+					pid_pipe_fork=open(destino_pipeAll,O_WRONLY);
+
 					idFile = open(argv[i],O_RDONLY);
+					
 					strcpy(info->Codigo,obterCodigo(argv[i]));
 					vazio=0;
 					while((tamanho=read(idFile,buffer,4096))>0){
@@ -222,50 +239,56 @@ int main(int argc, char** argv) {
 						strcpy(info->NomeFicheiro,argv[i]);
 						strcpy(info->comando,argv[1]);
 						info->fim=1;
-						write(pid_pipe, info, sizeof(*info));
+						write(pid_pipe_fork, info, sizeof(*info));
+						memset(buffer,0,4096);
 					}
 					if(vazio){
-					
 					info->fim=0;
 					info->tamanho=0;
 					info->pidProcesso=getpid();
 					strcpy(info->NomeFicheiro,argv[i]);
 					strcpy(info->comando,argv[1]);
-					write(pid_pipe,info,sizeof(*info));
-					
+					write(pid_pipe_fork,info,sizeof(*info));
+
 					close(idFile);
 					
 					printf("%s : ",argv[i]);
 					pause();
 					}
-					else printf("Ficheiro Vazio.\n");	
+					else printf("Ficheiro Vazio.\n");
+					close(pid_pipe_fork);	
 				}
 				else if(strcmp(argv[command_index],"restore")==0){
-					info2->fim=0;
-					info2->tamanho=0;
-					info2->pidProcesso=getpid();
-					strcpy(info2->NomeFicheiro,argv[i]);
-					strcpy(info2->comando,argv[1]);
-					write(pid_pipe,info2,sizeof(*info2));
-					pid_pipe2= open(destino_pipe2, O_RDONLY);
 
-					while((tamanho_restore=read(pid_pipe2,info2,sizeof(*info2)))>0){
+					info = initInfo(); 
+					write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+					pid_pipe_fork=open(destino_pipeAll,O_RDONLY);
+
+					while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
+
 						if(tamanho_restore!=0){
 							if(info->fim){
 								idFile2 = open(argv[i],O_WRONLY | O_CREAT | O_APPEND, 0666);
-								write(idFile2,info2->Ficheiro,info2->tamanho);
+								write(idFile2,info->Ficheiro,info->tamanho);
 								close(idFile2);
 							}
 						}
-						else close(pid_pipe2);
+						else close(pid_pipe_fork);
 					}
+
 					printf("%s : Recuperado.\n",argv[i]);
 				}
 			}
 			else printf("Ficheiro %s não existe.\n",argv[i]);
 			
-			/*_exit(0);
-		}*/
+			unlink(destino_pipeAll);
+			_exit(0);
+		}
+	}
+
+	for(i=2;argv[i];i++){
+		wait(NULL);
 	}
 
 	close(pid_pipe);

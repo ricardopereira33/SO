@@ -19,6 +19,13 @@ typedef struct info {
 	char Ficheiro[4096];
 }*INFO;
 
+typedef struct infoPipe {
+	char pipeName[256];
+	char comando[16];
+	char fileName[128];
+}*INFO_PIPE;
+
 INFO initInfo();
+INFO_PIPE initInfoPipe();
 
 #endif

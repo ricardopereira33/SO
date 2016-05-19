@@ -2,7 +2,10 @@
 
 INFO initInfo(){
 	INFO info = malloc (sizeof(struct info));
-	info->pidProcesso=0;
-	info->fim = 1;
+	return info;
+}
+
+INFO_PIPE initInfoPipe(){
+	INFO_PIPE info = malloc(sizeof(struct info));
 	return info;
 }

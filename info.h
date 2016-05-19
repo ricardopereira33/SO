@@ -13,8 +13,9 @@ typedef struct info {
 	int pidProcesso;
 	int fim;
 	int tamanho;
+	char Codigo[256];
 	char NomeFicheiro[512];
-	char comando[10];
+	char comando[16];
 	char Ficheiro[4096];
 }*INFO;
 

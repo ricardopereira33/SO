@@ -24,7 +24,6 @@ int numComand = 0;
   */
 
 void fim (){
-    printf("sdvsd\n");
     numComand--;
 }
 
@@ -57,7 +56,7 @@ void criaPastas (){
   */
 
 char** readln(char *buf,int *n,char* front){
-    char** buff=malloc(32*sizeof(char*));
+    char** buff=malloc(BUFFER_SIZE*sizeof(char*));
     int i=0;
     char* token;
     token = strtok(buf, front);
@@ -90,10 +89,9 @@ int exist (char* file, char* dest){
         dup2(pfd[1],1);
         execlp("ls","ls",dest,NULL);
         perror("erro");
-        _exit(1);
+        _exit(0);
     }
     wait(NULL);
-    
     close(pfd[1]);
     dup2(pfd[0],0);
     close(pfd[0]);
@@ -114,63 +112,61 @@ int exist (char* file, char* dest){
   *
   */
 
-int backup(char* file){
-    int pfd[2],n;
-    char codigo[128];
+int backup(char* file,char* codigo,int caso){
+
     char data[BUFFER_SIZE],metadata[BUFFER_SIZE];
     char destino_ficheiro_data[BUFFER_SIZE],destino_codigo[BUFFER_SIZE],destino_ficheiro_metadata[BUFFER_SIZE];
-    char** fileName;
 
     strcpy(data,getenv("HOME"));
     strcat(data,"/.Backup/data/");
     strcpy(metadata,getenv("HOME"));
     strcat(metadata,"/.Backup/metadata/");
 
-    pipe(pfd);
-    if(!fork()){
-        close(pfd[0]);
-        dup2(pfd[1],1);
-        execlp("sha1sum","sha1sum",file,NULL);
-        perror("erro");
-        _exit(1);
+
+    if(caso==1){
+        strcpy(destino_codigo,data);
+        strcat(destino_codigo,codigo);
+
+        strcpy(destino_ficheiro_metadata,metadata);
+        strcat(destino_ficheiro_metadata,file);
+
+        if(!fork()){
+            execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
+        return 1;
     }
-    wait(NULL);
-    
-    close(pfd[1]);
-    dup2(pfd[0],0);
-    close(pfd[0]);
-    
-    /* output do sha1sum */
-    read(0,codigo,128);
-    codigo[strlen(codigo)-1]=0;
-    fileName=readln(codigo,&n,"  ");
+    else if(caso==2){
+        strcpy(destino_ficheiro_data,data);
+        strcat(destino_ficheiro_data,file);
 
-    strcpy(destino_ficheiro_data,data);
-    strcat(destino_ficheiro_data,file);
-
-    if(!fork()){
+        if(!fork()){
            execlp("gzip","gzip",destino_ficheiro_data,NULL);
            perror("error");
            _exit(1);
         }
-    wait(NULL);
+        wait(NULL);
 
-    strcat(destino_ficheiro_data,".gz");
-    strcpy(destino_codigo,data);
-    strcat(destino_codigo,fileName[0]);
+        strcat(destino_ficheiro_data,".gz");
+        strcpy(destino_codigo,data);
+        strcat(destino_codigo,codigo);
 
-    rename(destino_ficheiro_data,destino_codigo);
+        rename(destino_ficheiro_data,destino_codigo);
 
-    strcpy(destino_ficheiro_metadata,metadata);
-    strcat(destino_ficheiro_metadata,fileName[1]);
+        strcpy(destino_ficheiro_metadata,metadata);
+        strcat(destino_ficheiro_metadata,file);
 
-    if(!fork()){
-        execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
-        perror("error");
-        _exit(1);
-    }
-    wait(NULL);
-    return 1;
+        if(!fork()){
+            execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
+            perror("error");
+            _exit(1);
+        }
+        wait(NULL);
+        return 1;
+        }
+    return 0;
 }
 
 /**
@@ -245,35 +241,52 @@ int main(){
         char destino_pipe[BUFFER_SIZE]; /* destino do pipe */
         char destino_file[BUFFER_SIZE]; /* destino para onde vai o ficheiro */
         char destino_data[BUFFER_SIZE]; /* pasta onde estão os ficheiros */
+        char destino_metadata[BUFFER_SIZE];
         strcpy(destino_pipe,getenv("HOME"));
         strcat(destino_pipe,"/.Backup/pipe");
         
         mkfifo(destino_pipe,0666);
-    	int n,i,pid_pipe,idFile;
-
+    	int n,i,pid_pipe,idFile,caso=2;
 
         signal(SIGINT,fim);
 
         INFO info = initInfo();
-
+        info->fim=0;
         strcpy(destino_data, getenv("HOME"));
         strcat(destino_data,"/.Backup/data");
+
+        strcpy(destino_metadata,getenv("HOME"));
+        strcat(destino_metadata,"/.Backup/metadata");
+        
         pid_pipe = open(destino_pipe,O_RDONLY);
+
         while(1){
+            if(numComand>=MAX){
+                pause();
+            }
             
             n = read(pid_pipe,info,sizeof(*info));
 
-            if(n!=0){  
-                if(info->fim){
-                sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
-                idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
-                write(idFile,info->Ficheiro,info->tamanho);
-                close(idFile);
+            if(n!=0){
+
+                if(exist(info->Codigo,destino_data) && !exist(info->NomeFicheiro,destino_metadata)){
+                    caso=1;
+                }
+                else if(!exist(info->Codigo,destino_data)){
+                    caso=2;
+                }
+
+                if(info->fim && caso==2){
+                    sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
+                    idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
+                    write(idFile,info->Ficheiro,info->tamanho);
+                    close(idFile);
                 }
                 else{
-
+                  numComand++;
+                  if(!fork()){
                     if(strcmp(info->comando,"backup")==0){
-                        i=backup(info->NomeFicheiro);
+                        i=backup(info->NomeFicheiro,info->Codigo,caso);
                         if(i)
                             n=kill(info->pidProcesso,SIGALRM);
                         else n=kill(info->pidProcesso,SIGUSR1);
@@ -294,10 +307,17 @@ int main(){
                     }
 
                     if(n==-1) kill(info->pidProcesso,SIGHUP);
+                    kill(getppid(),SIGINT);
+                    _exit(1);
+                    }
                 }
+                caso=2;
             }
-            
-        /*    close(pid_pipe); */
+            else{
+                close(pid_pipe);
+                pid_pipe = open(destino_pipe,O_RDONLY);
+            }
+        /*close(pid_pipe);*/
         }
     }
     return 0;

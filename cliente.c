@@ -10,6 +10,7 @@
 #include "info.h"
 
 #define command_index 1
+#define BUFFER_SIZE 128
 
 /**
   * A função alarmBackup, imprime o aviso que um ficheiro foi copiado. Provém de um sinal.
@@ -52,8 +53,8 @@ void alarmDelete(){
   *
   */
 
-char** readln(char *buf,int *n,char* front){
-	char** buff=malloc(32*sizeof(char*));
+char** readln(char *buf,char* front){
+	char** buff=malloc(BUFFER_SIZE*sizeof(char*));
 	int i=0;
 	char* token;
 	token = strtok(buf, front);
@@ -66,7 +67,6 @@ char** readln(char *buf,int *n,char* front){
 	  token = strtok(NULL, front);
    }
 	buff[i]=NULL;
-	*n=i-1;
 	return buff;
 }
 
@@ -76,8 +76,8 @@ char** readln(char *buf,int *n,char* front){
   */
 
 int exist (char* file){
-	int pfd[2],n,i;
-	char codigo[128];
+	int pfd[2],i;
+	char codigo[BUFFER_SIZE];
 	char** aux;
 
 	pipe(pfd);
@@ -86,7 +86,7 @@ int exist (char* file){
 		dup2(pfd[1],1);
 		execlp("ls","ls",NULL);
 		perror("erro");
-		_exit(1);
+		_exit(0);
 	}
 	wait(NULL);
 	
@@ -94,10 +94,10 @@ int exist (char* file){
 	dup2(pfd[0],0);
 	close(pfd[0]);
 	
-	read(0,codigo,128);
+	read(0,codigo,BUFFER_SIZE);
 	codigo[strlen(codigo)]=0;
 	
-	aux=readln(codigo,&n,"\n");
+	aux=readln(codigo,"\n");
 
 	for(i=0;aux[i]!=NULL;i++){
 		if(!strcmp(aux[i],file)) return 1;
@@ -135,6 +135,32 @@ int verificaCmd(char** cmd, int argc){
 
 }
 
+char* obterCodigo(char* file){
+	int pfd[2];
+	char codigo[BUFFER_SIZE];
+	char**fileName;
+	pipe(pfd);
+    if(!fork()){
+        close(pfd[0]);
+        dup2(pfd[1],1);
+        execlp("sha1sum","sha1sum",file,NULL);
+        perror("erro");
+        _exit(1);
+    }
+    wait(NULL);
+    
+    close(pfd[1]);
+    dup2(pfd[0],0);
+    close(pfd[0]);
+    
+    /* output do sha1sum */
+    read(0,codigo,128);
+    codigo[strlen(codigo)-1]=0;
+    fileName=readln(codigo,"  ");
+
+    return fileName[0];
+}
+
 /**
   * A main responsável por aplicar todas as funções.
   *
@@ -143,18 +169,23 @@ int verificaCmd(char** cmd, int argc){
 int main(int argc, char** argv) {
 	int i,tamanho;
 	char buffer[4096];
-	char destino[128]; 
+	char destino[BUFFER_SIZE]; 
 	strcpy(destino,getenv("HOME"));
 	strcat(destino,"/.Backup/pipe");
 
-   int pid_pipe = open(destino, O_WRONLY);
-
-   INFO info = initInfo();
-
 	/*Casos invalidos*/
+	if(argc==1) {
+		printf("Falta o comando.\n");
+		return 1;
+	}
+
 	if( strcmp(argv[command_index],"restore")!=0 && !verificaCmd(argv+1,argc) ){
 		return 1;
 	}
+
+   	int pid_pipe = open(destino, O_WRONLY);
+
+   	INFO info = initInfo();
 	
 	signal(SIGALRM,alarmBackup);
 	signal(SIGINT,alarmRestore);
@@ -166,7 +197,7 @@ int main(int argc, char** argv) {
 		if(!fork()){
 			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
 				int idFile = open(argv[i],O_RDONLY);
-				
+				strcpy(info->Codigo,obterCodigo(argv[i]) );
 				while((tamanho=read(idFile,buffer,4096))>0){
 					memcpy(info->Ficheiro,buffer,tamanho);
 					info->tamanho=tamanho;
@@ -187,6 +218,7 @@ int main(int argc, char** argv) {
 				pause();
 			}
 			else printf("Ficheiro %s não existe.\n",argv[i]);
+			
 			_exit(0);
 		}
 	}

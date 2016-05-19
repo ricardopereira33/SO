@@ -27,6 +27,18 @@ void fim (){
     numComand--;
 }
 
+void copy(char* orig, char *dest){
+    int n;
+    int file_orig;
+    int file_dest;
+    char buffer[1024];
+
+    file_orig = open(orig,O_RDONLY);
+    file_dest = open(dest,O_WRONLY | O_CREAT | O_APPEND, 0600);
+    while((n=read(file_orig,buffer,1024)))
+        write(file_dest,buffer,n);
+}
+
 /**
   * A função criaPastas, é a função responsável por criar as pastas onde as cópias de seguranças ( backup's ) vão ficar armazenadas. 
   *
@@ -92,6 +104,7 @@ int exist (char* file, char* dest){
         _exit(0);
     }
     wait(NULL);
+
     close(pfd[1]);
     dup2(pfd[0],0);
     close(pfd[0]);
@@ -138,7 +151,7 @@ int backup(char* file,char* codigo,int caso){
         wait(NULL);
         return 1;
     }
-    else if(caso==2){
+    else if(caso==2 || caso==3){
         strcpy(destino_ficheiro_data,data);
         strcat(destino_ficheiro_data,file);
 
@@ -158,8 +171,10 @@ int backup(char* file,char* codigo,int caso){
         strcpy(destino_ficheiro_metadata,metadata);
         strcat(destino_ficheiro_metadata,file);
 
+        if(caso==2) unlink(destino_ficheiro_metadata);
+
         if(!fork()){
-            execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
+            execlp("ln","ln","-s",destino_codigo,destino_ficheiro_metadata,NULL);
             perror("error");
             _exit(1);
         }
@@ -174,37 +189,56 @@ int backup(char* file,char* codigo,int caso){
   *
   */
 
-void restore (char* file){
-    char destino[128];
-    char fileZip[128];
+void restore (char* file,int pid_pipe){
 
-    strcpy(destino,getenv("HOME"));
-    strcat(destino,"/.Backup/metadata/");
+    int  idFile, tamanho;
+    char ficheiro_metadata[BUFFER_SIZE];
+    char ficheiro_zip[BUFFER_SIZE];
+    char ficheiro_zip_2[BUFFER_SIZE];
+    char buffer[4096];
 
+    strcpy(ficheiro_metadata,getenv("HOME"));
+    strcat(ficheiro_metadata,"/.Backup/metadata/");
+
+    strcat(ficheiro_metadata,file);
+    
+    tamanho = readlink(ficheiro_metadata,ficheiro_zip, BUFFER_SIZE);
+    
+    ficheiro_zip[tamanho]=0;
+    
+    strcpy(ficheiro_zip_2,ficheiro_zip);
+    strcat(ficheiro_zip,".gz");
+    
+    rename(ficheiro_zip_2,ficheiro_zip);
+    
     if(!fork()){
-        strcat(destino,file);
-        execlp("cp","cp",destino,file,NULL);
-        perror("erro");
-        _exit(1);
-    }
-    wait(NULL);
-
-    strcpy(fileZip,file);
-    strcat(fileZip,".gz");
-
-    if(!fork()){
-            execlp("mv","mv",file,fileZip,NULL);
+            execlp("gunzip","gunzip",ficheiro_zip,NULL);
             perror("error");
             _exit(1);
     }
     wait(NULL);
 
-    if(!fork()){
-            execlp("gunzip","gunzip",fileZip,NULL);
-            perror("error");
-            _exit(1);
-    }
-    wait(NULL);
+    INFO info = initInfo();
+    idFile = open(ficheiro_zip, O_RDONLY);
+
+    while((tamanho=read(idFile,buffer,4096))>0){
+        memcpy(info->Ficheiro,buffer,tamanho);
+        info->tamanho=tamanho;
+        info->pidProcesso=getpid();
+        strcpy(info->NomeFicheiro,file);
+        strcpy(info->comando,"restore");
+        info->fim=1;
+        write(pid_pipe, info,sizeof(*info));
+    } 
+
+    info->fim=0;
+    info->tamanho=0;
+    info->pidProcesso=getpid();
+    strcpy(info->NomeFicheiro,file);
+    strcpy(info->comando,"restore");
+    write(pid_pipe,info,sizeof(*info)); 
+
+    close(pid_pipe);
 }
 
 void delete (char* file){
@@ -239,14 +273,19 @@ int main(){
 
     if(!fork()){
         char destino_pipe[BUFFER_SIZE]; /* destino do pipe */
+        char destino_pipe2[BUFFER_SIZE]; /* destino do pipe */
         char destino_file[BUFFER_SIZE]; /* destino para onde vai o ficheiro */
         char destino_data[BUFFER_SIZE]; /* pasta onde estão os ficheiros */
         char destino_metadata[BUFFER_SIZE];
         strcpy(destino_pipe,getenv("HOME"));
         strcat(destino_pipe,"/.Backup/pipe");
+        strcpy(destino_pipe2,getenv("HOME"));
+        strcat(destino_pipe2,"/.Backup/pipe2");
         
         mkfifo(destino_pipe,0666);
-    	int n,i,pid_pipe,idFile,caso=2;
+        mkfifo(destino_pipe2,0666);
+
+    	int n,i,pid_pipe,pid_pipe2,idFile,caso_backup,caso_restore,verifica=1;
 
         signal(SIGINT,fim);
 
@@ -260,41 +299,73 @@ int main(){
         
         pid_pipe = open(destino_pipe,O_RDONLY);
 
+        char existCodigo[BUFFER_SIZE];
+        char existFile[BUFFER_SIZE];
+
         while(1){
             if(numComand>=MAX){
                 pause();
             }
             
             n = read(pid_pipe,info,sizeof(*info));
-
+          
             if(n!=0){
+             
+                if(verifica && !strcmp(info->comando,"backup")){
+                    strcpy(existCodigo,destino_data);
+                    strcat(existCodigo,"/");
+                    strcat(existCodigo,info->Codigo);
+                  
+                    strcpy(existFile,destino_metadata);
+                    strcat(existFile,"/");
+                    strcat(existFile,info->NomeFicheiro);
 
-                if(exist(info->Codigo,destino_data) && !exist(info->NomeFicheiro,destino_metadata)){
-                    caso=1;
+                    if(access(existCodigo, F_OK)==0 && access(existFile,F_OK)==-1) caso_backup=1;
+                
+                    else if(access(existFile, F_OK)==0 && access(existCodigo,F_OK)==-1 ) caso_backup=2;
+
+                    else if(access(existCodigo,F_OK)==-1 && access(existFile,F_OK)==-1 ) caso_backup=3;
+
+                    else caso_backup=4; 
+
+                    verifica=0;
                 }
-                else if(!exist(info->Codigo,destino_data)){
-                    caso=2;
+                if(verifica && !strcmp(info->comando,"restore")){
+                    strcpy(existFile,destino_metadata);
+                    strcat(existFile,"/");
+                    strcat(existFile,info->NomeFicheiro);
+
+                    if(access(existFile,F_OK)==0)  caso_restore=1;
+                    else caso_restore=0;
+                    verifica=0;
                 }
 
-                if(info->fim && caso==2){
-                    sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
-                    idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
-                    write(idFile,info->Ficheiro,info->tamanho);
-                    close(idFile);
+                if(info->fim && (caso_backup==2 || caso_backup==3 || caso_backup==4)){
+                    if(caso_backup!=4){
+                        sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
+                        idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
+                        write(idFile,info->Ficheiro,info->tamanho);
+                        close(idFile);
+                    }
                 }
-                else{
+                else {
+                 
                   numComand++;
                   if(!fork()){
                     if(strcmp(info->comando,"backup")==0){
-                        i=backup(info->NomeFicheiro,info->Codigo,caso);
+                        i=backup(info->NomeFicheiro,info->Codigo,caso_backup);
                         if(i)
                             n=kill(info->pidProcesso,SIGALRM);
                         else n=kill(info->pidProcesso,SIGUSR1);
                     }
 
                     if(strcmp(info->comando,"restore")==0){
-                        restore(info->NomeFicheiro);
-                        n=kill(info->pidProcesso,SIGINT);
+                        if(caso_restore){
+                            pid_pipe2=open(destino_pipe2,O_WRONLY);
+                            restore(info->NomeFicheiro,pid_pipe2);
+                            /*n=kill(info->pidProcesso,SIGINT);*/
+                        }
+                        /*else n=kill(info->pidProcesso,SIGINT);*/
                     }
 
                     if(strcmp(info->comando,"delete")==0){
@@ -307,18 +378,21 @@ int main(){
                     }
 
                     if(n==-1) kill(info->pidProcesso,SIGHUP);
+                    
                     kill(getppid(),SIGINT);
                     _exit(1);
                     }
                 }
-                caso=2;
             }
             else{
                 close(pid_pipe);
                 pid_pipe = open(destino_pipe,O_RDONLY);
+                verifica=1;
+                /*caso_backup=0;*/
             }
-        /*close(pid_pipe);*/
+
         }
+    
     }
     return 0;
 }

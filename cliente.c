@@ -173,7 +173,7 @@ char* obterCodigo(char* file){
   */
 
 int main(int argc, char** argv) {
-	int i,tamanho,idFile,idFile2,tamanho_restore;
+	int i,tamanho,idFile,idFile2,tamanho_restore,vazio;
 	char buffer[4096];
 	char destino[BUFFER_SIZE]; 
 	char destino_pipe2[BUFFER_SIZE];
@@ -213,8 +213,9 @@ int main(int argc, char** argv) {
 
 					idFile = open(argv[i],O_RDONLY);
 					strcpy(info->Codigo,obterCodigo(argv[i]));
-
+					vazio=0;
 					while((tamanho=read(idFile,buffer,4096))>0){
+						vazio++;
 						memcpy(info->Ficheiro,buffer,tamanho);
 						info->tamanho=tamanho;
 						info->pidProcesso=getpid();
@@ -223,6 +224,8 @@ int main(int argc, char** argv) {
 						info->fim=1;
 						write(pid_pipe, info, sizeof(*info));
 					}
+					if(vazio){
+					
 					info->fim=0;
 					info->tamanho=0;
 					info->pidProcesso=getpid();
@@ -230,10 +233,12 @@ int main(int argc, char** argv) {
 					strcpy(info->comando,argv[1]);
 					write(pid_pipe,info,sizeof(*info));
 					
-					/*close(idFile);*/
+					close(idFile);
 					
 					printf("%s : ",argv[i]);
-					pause();	
+					pause();
+					}
+					else printf("Ficheiro Vazio.\n");	
 				}
 				else if(strcmp(argv[command_index],"restore")==0){
 					info2->fim=0;
@@ -247,8 +252,7 @@ int main(int argc, char** argv) {
 					while((tamanho_restore=read(pid_pipe2,info2,sizeof(*info2)))>0){
 						if(tamanho_restore!=0){
 							if(info->fim){
-								printf("ola\n");
-								idFile2 = open(argv[i],O_WRONLY | O_CREAT | O_APPEND, 0600);
+								idFile2 = open(argv[i],O_WRONLY | O_CREAT | O_APPEND, 0666);
 								write(idFile2,info2->Ficheiro,info2->tamanho);
 								close(idFile2);
 							}

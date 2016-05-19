@@ -219,18 +219,17 @@ void restore (char* file,int pid_pipe){
     wait(NULL);
 
     INFO info = initInfo();
-    idFile = open(ficheiro_zip, O_RDONLY);
+    idFile = open(ficheiro_zip_2, O_RDONLY);
 
     while((tamanho=read(idFile,buffer,4096))>0){
-        memcpy(info->Ficheiro,buffer,tamanho);
+        memcpy(info->Ficheiro,buffer,tamanho);   
         info->tamanho=tamanho;
         info->pidProcesso=getpid();
         strcpy(info->NomeFicheiro,file);
         strcpy(info->comando,"restore");
         info->fim=1;
         write(pid_pipe, info,sizeof(*info));
-    } 
-
+    }
     info->fim=0;
     info->tamanho=0;
     info->pidProcesso=getpid();
@@ -308,7 +307,7 @@ int main(){
             }
             
             n = read(pid_pipe,info,sizeof(*info));
-            /*printf("PIPE ->%d\n",info->fim);*/
+           
             if(n!=0){
              
                 if(verifica && !strcmp(info->comando,"backup")){
@@ -343,10 +342,10 @@ int main(){
                 if(info->fim  && (caso_backup==2 || caso_backup==3 || caso_backup==4) && !strcmp(info->comando,"backup")){
                     if(caso_backup!=4){
                         sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
-                        idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
+                        idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0666);
                         write(idFile,info->Ficheiro,info->tamanho);
                         close(idFile);
-                    }
+                    }   
                 }
                 else {
                  /*printf("%d\n",caso_backup);*/
@@ -365,7 +364,7 @@ int main(){
                             restore(info->NomeFicheiro,pid_pipe2);
                             /*n=kill(info->pidProcesso,SIGINT);*/
                         }
-                        /*else n=kill(info->pidProcesso,SIGINT);*/
+                        else n=kill(info->pidProcesso,SIGINT);
                     }
 
                     if(strcmp(info->comando,"delete")==0){

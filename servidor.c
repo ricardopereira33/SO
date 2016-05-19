@@ -308,7 +308,7 @@ int main(){
             }
             
             n = read(pid_pipe,info,sizeof(*info));
-          
+            /*printf("PIPE ->%d\n",info->fim);*/
             if(n!=0){
              
                 if(verifica && !strcmp(info->comando,"backup")){
@@ -339,8 +339,8 @@ int main(){
                     else caso_restore=0;
                     verifica=0;
                 }
-
-                if(info->fim && (caso_backup==2 || caso_backup==3 || caso_backup==4)){
+               
+                if(info->fim  && (caso_backup==2 || caso_backup==3 || caso_backup==4) && !strcmp(info->comando,"backup")){
                     if(caso_backup!=4){
                         sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
                         idFile = open(destino_file,O_WRONLY | O_CREAT | O_APPEND, 0600);
@@ -349,7 +349,7 @@ int main(){
                     }
                 }
                 else {
-                 
+                 /*printf("%d\n",caso_backup);*/
                   numComand++;
                   if(!fork()){
                     if(strcmp(info->comando,"backup")==0){

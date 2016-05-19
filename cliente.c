@@ -229,7 +229,9 @@ int main(int argc, char** argv) {
 					strcpy(info->NomeFicheiro,argv[i]);
 					strcpy(info->comando,argv[1]);
 					write(pid_pipe,info,sizeof(*info));
-					close(idFile);
+					
+					/*close(idFile);*/
+					
 					printf("%s : ",argv[i]);
 					pause();	
 				}

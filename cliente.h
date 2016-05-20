@@ -27,7 +27,7 @@ char** readln(char *buf,char* front);
 void mudarSinal ();
 void alarmBackup();
 void alarmRestore();
-void alarmErro();
+void alarmNaoExiste();
 void alarmVoid();
 void alarmVoid2();
 void alarmDelete();

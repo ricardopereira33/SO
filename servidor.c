@@ -126,7 +126,7 @@ int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* ca
 
 void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_pipe_fork, int caso_restore, int caso_backup){
         int i;
-
+        i=0;
         if(strcmp(info->comando,"backup")==0){
             i=backup(info->NomeFicheiro,info->Codigo,caso_backup);
             usleep(100);
@@ -142,8 +142,10 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
         }
 
         if(strcmp(comando,"delete")==0){
-            delete(fileName);
-            kill(pidProcesso,SIGUSR2);
+            i=delete(fileName);
+            if(i)    
+                kill(pidProcesso,SIGUSR2);
+            else kill(pidProcesso,SIGHUP);
         }
 
         if(strcmp(comando,"gc")==0){
@@ -283,7 +285,7 @@ void restore (char* file,int pid_pipe){
     close(pid_pipe);
 }
 
-void delete (char* file){
+int delete (char* file){
     char destino[BUFFER_SIZE];
     strcpy(destino,getenv("HOME"));
     strcat(destino,"/.Backup/metadata/");
@@ -291,8 +293,11 @@ void delete (char* file){
     if(exist(file,destino)){
         strcat(destino,file);
         unlink(destino);
+        return 1;
     }
-    else printf("Não existe o ficheiro %s.\n",file);
+    else{ 
+        return 0;
+    }
 }
 
 void gc(){

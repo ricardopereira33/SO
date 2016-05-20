@@ -21,7 +21,7 @@
 
 void gc();
 char** listaPasta(char* dest);
-void delete (char* file);
+int  delete (char* file);
 void restore (char* file,int pid_pipe);
 int backup(char* file,char* codigo,int caso);
 int exist (char* file, char* dest);

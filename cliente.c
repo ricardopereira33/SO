@@ -285,7 +285,7 @@ int verificaCmd(char** cmd, int argc){
 void mudarSinal (){
 	signal(SIGALRM,alarmBackup);
 	signal(SIGINT,alarmRestore);
-	signal(SIGHUP,alarmErro); 
+	signal(SIGHUP,alarmNaoExiste); 
 	signal(SIGUSR1,alarmVoid);
 	signal(SIGUSR2,alarmDelete);
 	signal(SIGFPE,alarmVoid2);
@@ -315,8 +315,8 @@ void alarmRestore(){
   *
   */
 
-void alarmErro(){
-	printf("Erro\n");
+void alarmNaoExiste(){
+	printf("Não existe.\n");
 }
 
 void alarmVoid(){

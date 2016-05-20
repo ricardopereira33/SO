@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
 				else if(strcmp(argv[command_index],"restore")==0 && i!=1 ){
 
 						comandoRestore(infoPipe,info,destino_pipeAll,pid_pipe,argv[i]);
+						existe=0;
 				}
 
 				else if(strcmp(argv[command_index],"delete")==0 && i!=1 ){
@@ -137,6 +138,7 @@ void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_
 
 	pause();
 	if(!existe){ 
+		if(exist(file)) unlink(file);
 
 		while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
 
@@ -153,7 +155,7 @@ void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_
 		printf("%s : Recuperado.\n",file);
 	}
 	else printf("Não existe backup do ficheiro.\n");
-	existe=0;
+	
 }
 
 void comandoDelete (INFO_PIPE infoPipe,int pid_pipe,char* file){

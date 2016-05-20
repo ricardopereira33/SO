@@ -44,17 +44,19 @@ int main(){
         int pid_pipe_fork,sair,m;
 
         while(1){
-            if(numComand>=MAX){
-                pause();
-            }
             
             n = read(pid_pipe,infoPipe,sizeof(*infoPipe));
-
+            printf("-|%d-\n",numComand);
+            while(numComand>=MAX){
+                pause();
+            }
+            printf("%d\n",numComand);
+            printf("work\n");
             if(n!=0){
                 strcpy(pipeName,infoPipe->pipeName);
                 strcpy(comando,infoPipe->comando);
                 strcpy(fileName,infoPipe->fileName);
-
+                numComand++;
                 if(!fork()){
 
                     if(!strcmp(comando,"backup")) pid_pipe_fork = open(pipeName,O_RDONLY);
@@ -70,8 +72,10 @@ int main(){
                         }
                         verifica=1;
                     } 
+                kill(getppid(),SIGINT);
                 _exit(1);
                 }
+                
             }
             else{
                 close(pid_pipe);
@@ -124,7 +128,7 @@ void chooseComand(INFO info,char* comando,char*fileName,int pid_pipe_fork, int c
 
         if(strcmp(info->comando,"backup")==0){
             i=backup(info->NomeFicheiro,info->Codigo,caso_backup);
-            usleep(100);
+            sleep(3);
             if(i)
                 kill(info->pidProcesso,SIGALRM);
             else kill(info->pidProcesso,SIGUSR1);

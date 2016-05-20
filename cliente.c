@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	for(i=2;argv[i];i++){
+	for(i=2;argv[i]!=NULL;i++){
 		wait(NULL);
 	}
 
@@ -195,7 +195,7 @@ char** readln(char *buf,char* front){
 
 int exist (char* file){
 	int pfd[2],i;
-	char codigo[BUFFER_SIZE];
+	char codigo[BLOCK_FILE_SIZE];
 	char** aux;
 
 	pipe(pfd);
@@ -212,9 +212,8 @@ int exist (char* file){
 	dup2(pfd[0],0);
 	close(pfd[0]);
 	
-	read(0,codigo,BUFFER_SIZE);
+	read(0,codigo,BLOCK_FILE_SIZE);
 	codigo[strlen(codigo)]=0;
-	
 	aux=readln(codigo,"\n");
 
 	for(i=0;aux[i]!=NULL;i++){

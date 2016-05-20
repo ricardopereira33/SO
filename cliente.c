@@ -3,11 +3,6 @@
 int acabou=0;
 int existe=0;
 
-/**
-  * A main responsável por aplicar todas as funções.
-  *
-  */
-
 int main(int argc, char** argv) {
 	int i,pid_pipe;
 	char destino[BUFFER_SIZE]; 
@@ -199,13 +194,6 @@ char* obterCodigo(char* file){
     return fileName[0];
 }
 
-
-/**
-  * A função readln é uma função auxiliar, que dado uma String, separa-a em várias Strings, criando uma lista com essas Strings. A String original, é 
-  * separada na porção de String equivalente a front.
-  *
-  */
-
 char** readln(char *buf,char* front){
 	char** buff=malloc(BUFFER_SIZE*sizeof(char*));
 	int i=0;
@@ -222,11 +210,6 @@ char** readln(char *buf,char* front){
 	buff[i]=NULL;
 	return buff;
 }
-
-/**
-  * A função exist verifica se um determinado ficheiro existe na directoria atual. A função recorre ao auxilio do comando ls.
-  *
-  */
 
 int exist (char* file){
 	int pfd[2],i;
@@ -256,11 +239,6 @@ int exist (char* file){
 	}
 	return 0;
 }
-
-/**
-  * A função verficaCmd verifca se o input, os argumentos, estão válidos.
-  *
-  */
 
 int verificaCmd(char** cmd, int argc){
 	int cmd_index=0;
@@ -300,28 +278,13 @@ void mudarSinal (){
  }
 
 
-/**
-  * A função alarmBackup, imprime o aviso que um ficheiro foi copiado. Provém de um sinal.
-  *
-  */
-
 void alarmBackup(){
 	printf("Copiado\n");
 }
 
-/**
-  * A função alarmBackup, imprime o aviso que um ficheiro foi recuperado. Provém de um sinal.
-  *
-  */
-
 void alarmRestore(){
 	printf("Recuperado\n");
 }
-
-/**
-  * A função alarmBackup, imprime o aviso que ocorreu um erro. Provém de um sinal.
-  *
-  */
 
 void alarmNaoExiste(){
 	printf("Não existe.\n");

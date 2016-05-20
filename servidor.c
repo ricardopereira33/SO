@@ -2,19 +2,13 @@
 
 int numComand = 0;
 
-
-/**
-  * A main do programa, que chama todas as funcões, e é responsável por manter o programa a correr em background.
-  *
-  */
-
 int main(){
     
     criaPastas();
 
     if(!fork()){
-        char destino_pipe[BUFFER_SIZE]; /* destino do pipe */ /* destino para onde vai o ficheiro */
-        char destino_data[BUFFER_SIZE]; /* pasta onde estão os ficheiros */
+        char destino_pipe[BUFFER_SIZE]; 
+        char destino_data[BUFFER_SIZE]; 
         char destino_metadata[BUFFER_SIZE];
         strcpy(destino_pipe,getenv("HOME"));
         strcat(destino_pipe,"/.Backup/pipe");
@@ -136,9 +130,8 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
         }
         
         if(strcmp(comando,"restore")==0){
-
+            usleep(100);
             if(caso_restore){
-                usleep(100);
                 kill(pidProcesso,SIGCONT);
                 restore(fileName,pid_pipe_fork);
             }
@@ -159,11 +152,6 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
             else kill(pidProcesso,SIGHUP);
         }
 }
-
-/**
-  * A função backup, uma das principais do programa, realiza a cópia de segurança de um ficheiro. Para isso, recorre aos comandos sha1sum,gzip,cp,mv e ln. 
-  *
-  */
 
 int backup(char* file,char* codigo,int caso){
 
@@ -224,10 +212,6 @@ int backup(char* file,char* codigo,int caso){
     return 0;
 }
 
-/**
-  * A função restore, uma das principais do programa, recupera ficheiros que tenham cópia de segurança.
-  *
-  */
 
 void restore (char* file,int pid_pipe){
 
@@ -389,12 +373,6 @@ int verificaFicheiros(INFO info,char* destino_metadata,char* destino_data){
 }
 
 
-/**
-  * A função fim descrementa a variavél global, numComand. Esta função é utilizada, para alterar um sinal, que indica quando um processo tenha acado, 
-  * o que decrementa desta foram o numComand.
-  *
-  */
-
 void fim (){
     numComand--;
 }
@@ -411,10 +389,6 @@ void my_copy(char* orig, char *dest){
         write(file_dest,buffer,n);
 }
 
-/**
-  * A função criaPastas, é a função responsável por criar as pastas onde as cópias de seguranças ( backup's ) vão ficar armazenadas. 
-  *
-  */
 
 void criaPastas (){
 
@@ -433,11 +407,6 @@ void criaPastas (){
     mkdir(metadata,0777);
 }
 
-/**
-  * A função readln é uma função auxiliar, que dado uma String, separa-a em várias Strings, criando uma lista com essas Strings. A String original, é 
-  * separada na porção de String equivalente a front.
-  *
-  */
 
 char** readln(char *buf,int *n,char* front){
     char** buff=malloc(BUFFER_SIZE*sizeof(char*));
@@ -457,10 +426,6 @@ char** readln(char *buf,int *n,char* front){
     return buff;
 }
 
-/**
-  * A função exist verifica se um determinado ficheiro existe numa certa directoria. A função recorre ao auxilio do comando ls.
-  *
-  */
 
 int exist (char* file, char* dest){
     char** lista_ficheiros;

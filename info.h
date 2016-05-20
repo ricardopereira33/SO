@@ -9,20 +9,28 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define BUFFER_SIZE 128
+#define BLOCK_FILE_SIZE 4096
+#define COMAND_SIZE 16
+#define CODE_SIZE 256
+#define FILE_NAME_SIZE 512
+
 typedef struct info {
 	int pidProcesso;
 	int fim;
 	int tamanho;
-	char Codigo[256];
-	char NomeFicheiro[512];
-	char comando[16];
-	char Ficheiro[4096];
+	char Codigo[CODE_SIZE];
+	char NomeFicheiro[FILE_NAME_SIZE];
+	char comando[COMAND_SIZE];
+	char Ficheiro[BLOCK_FILE_SIZE];
 }*INFO;
 
 typedef struct infoPipe {
-	char pipeName[256];
-	char comando[16];
-	char fileName[128];
+	char pipeName[CODE_SIZE];
+	char comando[COMAND_SIZE];
+	char fileName[BUFFER_SIZE];
+	/*char codigo[CODE_SIZE];
+	int pidProcesso;*/
 }*INFO_PIPE;
 
 INFO initInfo();

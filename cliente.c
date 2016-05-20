@@ -1,6 +1,7 @@
 #include "cliente.h"
 
 int acabou=0;
+int existe=0;
 
 /**
   * A main responsável por aplicar todas as funções.
@@ -81,9 +82,10 @@ void comandoBackup(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_p
 	pid_pipe_fork=open(destino_pipeAll,O_WRONLY);
 
 	idFile = open(file,O_RDONLY);
-					
+				
 	strcpy(info->Codigo,obterCodigo(file));
 	vazio=0;
+
 	while((tamanho=read(idFile,buffer,BLOCK_FILE_SIZE))>0){
 		vazio++;
 		memcpy(info->Ficheiro,buffer,tamanho);
@@ -104,7 +106,7 @@ void comandoBackup(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_p
 		write(pid_pipe_fork,info,sizeof(*info));
 
 		close(idFile);
-					
+				
 		printf("%s : ",file);
 		pause();
 	}

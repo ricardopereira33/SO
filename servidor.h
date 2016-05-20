@@ -25,8 +25,9 @@ int backup(char* file,char* codigo,int caso);
 int exist (char* file, char* dest);
 char** readln(char *buf,int *n,char* front);
 void criaPastas ();
-void copy(char* orig, char *dest);
+void my_copy(char* orig, char *dest);
 void fim ();
+int verificaFicheiros(INFO info,char* destino_metadata,char* destino_data);
 void chooseComand(INFO info,char* comando,char*filename,int pid_pipe_fork, int caso_restore, int caso_backup);
 int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pid_pipe_fork);
 

@@ -28,5 +28,7 @@ void alarmErro();
 void alarmVoid();
 void alarmVoid2();
 void alarmDelete();
+void alarmVoid3();
+void alarmJaExiste();
 
 #endif

@@ -59,7 +59,7 @@ int main(){
 
                     if(!strcmp(comando,"backup")) pid_pipe_fork = open(pipeName,O_RDONLY);
                     else if(!strcmp(comando,"restore")) pid_pipe_fork = open(pipeName,O_WRONLY);
-                
+
                     sair=1;
                     while(sair){
 
@@ -69,7 +69,7 @@ int main(){
                             sair=checkComandAndFile(info,sair,&verifica,&caso_backup,&caso_restore,destino_data,destino_metadata,fileName,comando,pid_pipe_fork);
                         }
                         verifica=1;
-                    }   
+                    } 
                 _exit(1);
                 }
             }
@@ -85,30 +85,12 @@ int main(){
 }
 
 int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pid_pipe_fork){
-    char existCodigo[BUFFER_SIZE];
+    
     char existFile[BUFFER_SIZE];
     char destino_file[BUFFER_SIZE];
     int idFile;
 
-    if(*verifica && !strcmp(info->comando,"backup")){
-        strcpy(existCodigo,destino_data);
-        strcat(existCodigo,"/");
-        strcat(existCodigo,info->Codigo);
-                  
-        strcpy(existFile,destino_metadata);
-        strcat(existFile,"/");
-        strcat(existFile,info->NomeFicheiro);
-
-        if(access(existCodigo, F_OK)==0 && access(existFile,F_OK)==-1) *caso_backup=1;
-                
-        else if(access(existFile, F_OK)==0 && access(existCodigo,F_OK)==-1 ) *caso_backup=2;
-
-        else if(access(existCodigo,F_OK)==-1 && access(existFile,F_OK)==-1 ) *caso_backup=3;
-
-        else *caso_backup=4; 
-
-        *verifica=0;
-    }
+    *caso_backup = verificaFicheiros(info,destino_metadata,destino_data);
 
     if(*verifica && !strcmp(comando,"restore")){
                       
@@ -239,24 +221,33 @@ void restore (char* file,int pid_pipe){
     char ficheiro_metadata[BUFFER_SIZE];
     char ficheiro_zip[BUFFER_SIZE];
     char ficheiro_zip_2[BUFFER_SIZE];
+    char ficheiro_clone[BUFFER_SIZE];
+    char codigo[BUFFER_SIZE];
     char buffer[BLOCK_FILE_SIZE];
 
     strcpy(ficheiro_metadata,getenv("HOME"));
     strcat(ficheiro_metadata,"/.Backup/metadata/");
-
+    strcpy(ficheiro_clone,getenv("HOME"));
+    strcat(ficheiro_clone,"/.Backup/data/");
+    
+    sprintf(codigo,"%d",getpid());
+    strcat(ficheiro_clone,codigo);
     strcat(ficheiro_metadata,file);
     
     tamanho = readlink(ficheiro_metadata,ficheiro_zip, BUFFER_SIZE);
     
     ficheiro_zip[tamanho]=0;
     
-    strcpy(ficheiro_zip_2,ficheiro_zip);
-    strcat(ficheiro_zip,".gz");
+    strcpy(ficheiro_zip_2,ficheiro_clone);
     
-    rename(ficheiro_zip_2,ficheiro_zip);
+    my_copy(ficheiro_zip,ficheiro_clone);
+
+    strcat(ficheiro_clone,".gz");
+    
+    rename(ficheiro_zip_2,ficheiro_clone);
 
     if(!fork()){
-            execlp("gunzip","gunzip",ficheiro_zip,NULL);
+            execlp("gunzip","gunzip",ficheiro_clone,NULL);
             perror("error");
             _exit(1);
     }
@@ -279,7 +270,9 @@ void restore (char* file,int pid_pipe){
     info->pidProcesso=getpid();
     strcpy(info->NomeFicheiro,file);
     strcpy(info->comando,"restore");
-    write(pid_pipe,info,sizeof(*info)); 
+    write(pid_pipe,info,sizeof(*info));
+
+    unlink(ficheiro_zip_2);
 
     close(pid_pipe);
 }
@@ -302,6 +295,30 @@ void delete (char* file){
 }
 
 
+int verificaFicheiros(INFO info,char* destino_metadata,char* destino_data){
+    int caso_backup;
+    char existCodigo[BUFFER_SIZE];
+    char existFile[BUFFER_SIZE];
+
+    strcpy(existCodigo,destino_data);
+    strcat(existCodigo,"/");
+    strcat(existCodigo,info->Codigo);
+                  
+    strcpy(existFile,destino_metadata);
+    strcat(existFile,"/");
+    strcat(existFile,info->NomeFicheiro);
+
+    if(access(existCodigo, F_OK)==0 && access(existFile,F_OK)==-1) caso_backup=1;
+                
+    else if(access(existFile, F_OK)==0 && access(existCodigo,F_OK)==-1 ) caso_backup=2;
+
+    else if(access(existCodigo,F_OK)==-1 && access(existFile,F_OK)==-1 ) caso_backup=3;
+
+    else caso_backup=4; 
+    
+    return caso_backup;
+}
+
 
 /**
   * A função fim descrementa a variavél global, numComand. Esta função é utilizada, para alterar um sinal, que indica quando um processo tenha acado, 
@@ -313,7 +330,7 @@ void fim (){
     numComand--;
 }
 
-void copy(char* orig, char *dest){
+void my_copy(char* orig, char *dest){
     int n;
     int file_orig;
     int file_dest;

@@ -136,6 +136,7 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
         }
         
         if(strcmp(comando,"restore")==0){
+
             if(caso_restore){
                 kill(pidProcesso,SIGCONT);
                 restore(fileName,pid_pipe_fork);

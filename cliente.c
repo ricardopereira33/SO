@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 			infoPipe->pidProcesso=getpid();
 			mkfifo(destino_pipeAll,0666);
 
-			if(!strcmp(argv[command_index],"restore") || !strcmp(argv[command_index],"gc") || (exist(argv[i]) || i==1)){ 
+			if(!strcmp(argv[command_index],"restore") || !strcmp(argv[command_index],"gc") || !strcmp(argv[command_index],"delete") || (exist(argv[i]) || i==1)){ 
 
 				if(strcmp(argv[command_index],"backup")==0 && i!=1){
 

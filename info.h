@@ -29,8 +29,8 @@ typedef struct infoPipe {
 	char pipeName[CODE_SIZE];
 	char comando[COMAND_SIZE];
 	char fileName[BUFFER_SIZE];
-	/*char codigo[CODE_SIZE];
-	int pidProcesso;*/
+	/*char codigo[CODE_SIZE];*/
+	int pidProcesso;
 }*INFO_PIPE;
 
 INFO initInfo();

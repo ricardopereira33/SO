@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
 	mudarSinal();
 
-	for(i=2;argv[i]!=NULL;i++){
+	for(i=1;argv[i]!=NULL;i++){
 		
 		if(!fork()){
 			info = initInfo(); 
@@ -45,18 +45,31 @@ int main(int argc, char** argv) {
 			strcpy(infoPipe->pipeName,destino_pipeAll);
 			strcpy(infoPipe->comando,argv[command_index]);
 			strcpy(infoPipe->fileName,argv[i]);
+			infoPipe->pidProcesso=getpid();
 			mkfifo(destino_pipeAll,0666);
 
-			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
+			if(!strcmp(argv[command_index],"restore") || !strcmp(argv[command_index],"gc") || (exist(argv[i]) || i==1)){ 
 
-				if(strcmp(argv[command_index],"backup")==0){
+				if(strcmp(argv[command_index],"backup")==0 && i!=1){
 
-					comandoBackup(infoPipe,info,destino_pipeAll,pid_pipe,argv[i],argv[1]);
+						comandoBackup(infoPipe,info,destino_pipeAll,pid_pipe,argv[i],argv[1]);
 				}
-				else if(strcmp(argv[command_index],"restore")==0){
+				else if(strcmp(argv[command_index],"restore")==0 && i!=1 ){
 
-					comandoRestore(infoPipe,info,destino_pipeAll,pid_pipe,argv[i]);
+						comandoRestore(infoPipe,info,destino_pipeAll,pid_pipe,argv[i]);
 				}
+
+				else if(strcmp(argv[command_index],"delete")==0 && i!=1 ){
+
+						comandoDelete(infoPipe,pid_pipe,argv[i]);
+				}
+				else if(strcmp(argv[command_index],"gc")==0 && argc==2){
+					
+					comandoGc(infoPipe,pid_pipe);
+				}
+				
+				else if(i!=1) printf("Comando inválido.\n");
+
 			}
 			else printf("Ficheiro %s não existe.\n",argv[i]);
 			
@@ -65,7 +78,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	for(i=2;argv[i]!=NULL;i++){
+	for(i=1;argv[i]!=NULL;i++){
 		wait(NULL);
 	}
 
@@ -136,6 +149,21 @@ void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_
 
 	printf("%s : Recuperado.\n",file);
 
+}
+
+void comandoDelete (INFO_PIPE infoPipe,int pid_pipe,char* file){
+
+	write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+	printf("%s : ",file);
+	pause();
+}
+
+void comandoGc(INFO_PIPE infoPipe,int pid_pipe){
+
+	write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+	pause();
 }
 
 char* obterCodigo(char* file){
@@ -235,7 +263,10 @@ int verificaCmd(char** cmd, int argc){
 		case 1: printf("Indique o comando que deseja realizar!\n");
 				return 0;
 		
-		case 2: if(comp){ 
+		case 2: if(!strcmp(cmd[cmd_index],"gc")){
+					return 1;
+				}
+				else if(comp ){ 
 					printf("Indentifique os ficheiros!\n");
 				}
 				else printf("Comando não existe.\n");
@@ -249,7 +280,6 @@ int verificaCmd(char** cmd, int argc){
 					return 0;
 				}
 	}
-
 }
 
 void mudarSinal (){

@@ -41,21 +41,20 @@ int main(){
         char comando[BUFFER_SIZE];
         char fileName[BUFFER_SIZE];
 
-        int pid_pipe_fork,sair,m;
+        int pid_pipe_fork,sair,m,pidProcesso;
 
         while(1){
             
-            n = read(pid_pipe,infoPipe,sizeof(*infoPipe));
-            printf("-|%d-\n",numComand);
+            n = read(pid_pipe,infoPipe,sizeof(*infoPipe));  
             while(numComand>=MAX){
                 pause();
             }
-            printf("%d\n",numComand);
-            printf("work\n");
+
             if(n!=0){
                 strcpy(pipeName,infoPipe->pipeName);
                 strcpy(comando,infoPipe->comando);
                 strcpy(fileName,infoPipe->fileName);
+                pidProcesso=infoPipe->pidProcesso;
                 numComand++;
                 if(!fork()){
 
@@ -68,7 +67,8 @@ int main(){
                         m = read(pid_pipe_fork,info,sizeof(*info));   
 
                         if(m!=0){
-                            sair=checkComandAndFile(info,sair,&verifica,&caso_backup,&caso_restore,destino_data,destino_metadata,fileName,comando,pid_pipe_fork);
+
+                            sair=checkComandAndFile(info,sair,&verifica,&caso_backup,&caso_restore,destino_data,destino_metadata,fileName,comando,pidProcesso,pid_pipe_fork);
                         }
                         verifica=1;
                     } 
@@ -88,13 +88,14 @@ int main(){
     return 0;
 }
 
-int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pid_pipe_fork){
+int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pidProcesso,int pid_pipe_fork){
     
     char existFile[BUFFER_SIZE];
     char destino_file[BUFFER_SIZE];
     int idFile;
 
-    *caso_backup = verificaFicheiros(info,destino_metadata,destino_data);
+    if(!strcmp(info->comando,"backup"))
+        *caso_backup = verificaFicheiros(info,destino_metadata,destino_data);
 
     if(*verifica && !strcmp(comando,"restore")){
                       
@@ -117,36 +118,37 @@ int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* ca
     }
     else {
         sair=0;
-        chooseComand(info,comando,fileName,pid_pipe_fork,*caso_restore,*caso_backup);
+        chooseComand(info,comando,fileName,pidProcesso,pid_pipe_fork,*caso_restore,*caso_backup);
     }
     return sair;
 }
 
 
-void chooseComand(INFO info,char* comando,char*fileName,int pid_pipe_fork, int caso_restore, int caso_backup){
+void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_pipe_fork, int caso_restore, int caso_backup){
         int i;
 
         if(strcmp(info->comando,"backup")==0){
             i=backup(info->NomeFicheiro,info->Codigo,caso_backup);
-            sleep(3);
+            usleep(100);
             if(i)
-                kill(info->pidProcesso,SIGALRM);
-            else kill(info->pidProcesso,SIGUSR1);
+                kill(pidProcesso,SIGALRM);
+            else kill(pidProcesso,SIGUSR1);
         }
 
         if(strcmp(comando,"restore")==0){
             if(caso_restore)
                 restore(fileName,pid_pipe_fork);
-            else kill(info->pidProcesso,SIGINT);
+            else kill(pidProcesso,SIGINT);
         }
 
-        if(strcmp(info->comando,"delete")==0){
-            delete(info->NomeFicheiro);
-            kill(info->pidProcesso,SIGUSR2);
+        if(strcmp(comando,"delete")==0){
+            delete(fileName);
+            kill(pidProcesso,SIGUSR2);
         }
 
-        if(strcmp(info->comando,"gc")==0){
-            printf("gc\n");
+        if(strcmp(comando,"gc")==0){
+            gc();
+            kill(pidProcesso,SIGUSR2);
         }
 }
 
@@ -288,14 +290,61 @@ void delete (char* file){
 
     if(exist(file,destino)){
         strcat(destino,file);
-        if(!fork()){
-            execlp("rm","rm",destino,NULL);
-            perror("error");
-            _exit(1);
-        }
-        wait(NULL);
+        unlink(destino);
     }
     else printf("Não existe o ficheiro %s.\n",file);
+}
+
+void gc(){
+    char destino_data[BUFFER_SIZE];
+    char destino_metadata[BUFFER_SIZE];
+    char ficheiro[BUFFER_SIZE];
+    char* ficheiro_data;
+    char* ficheiro_metadata;
+
+    strcpy(destino_data,getenv("HOME"));
+    strcat(destino_data,"/.Backup/data/");
+
+    strcpy(destino_metadata,getenv("HOME"));
+    strcat(destino_metadata,"/.Backup/metadata/");
+   
+    char** lista_data;
+    char** lista_metadata;
+    char** lista_path;
+    int i,j,tamanho,n,notDelete;
+
+    lista_data=listaPasta(destino_data);
+    lista_metadata=listaPasta(destino_metadata);
+
+    for(i=0;lista_data[i]!=NULL;i++){
+        ficheiro_data=malloc(sizeof(char)*BUFFER_SIZE);
+        strcpy(ficheiro_data,getenv("HOME"));
+        strcat(ficheiro_data,"/.Backup/data/");
+        strcat(ficheiro_data,lista_data[i]);
+        
+        for(j=0;lista_metadata[j]!=NULL;j++){
+            ficheiro_metadata=malloc(sizeof(char)*BUFFER_SIZE);
+            strcpy(ficheiro_metadata,destino_metadata);
+            strcat(ficheiro_metadata,lista_metadata[j]);
+            
+            tamanho=readlink(ficheiro_metadata,ficheiro,BUFFER_SIZE);
+            ficheiro[tamanho]=0;
+            
+            lista_path=readln(ficheiro,&n,"/");
+            
+            if(!strcmp(lista_path[n],lista_data[i]))
+                notDelete++;
+
+            free(ficheiro_metadata);
+            ficheiro_metadata=NULL;
+            if(notDelete>0) break;
+        }
+
+        if(notDelete==0) unlink(ficheiro_data);
+        notDelete=0;
+        free(ficheiro_data);
+        ficheiro_data=NULL;
+    }
 }
 
 
@@ -398,8 +447,21 @@ char** readln(char *buf,int *n,char* front){
   */
 
 int exist (char* file, char* dest){
-    int pfd[2],n,i;
-    char codigo[BUFFER_SIZE];
+    char** lista_ficheiros;
+    int i;
+    
+    lista_ficheiros=listaPasta(dest);
+
+    for(i=0;lista_ficheiros[i]!=NULL;i++){
+        if(!strcmp(lista_ficheiros[i],file)) return 1;
+    }
+    return 0;
+}
+
+
+char** listaPasta(char* dest){
+    int pfd[2],n;
+    char codigo[BLOCK_FILE_SIZE];
     char** lista_ficheiros;
 
     pipe(pfd);
@@ -416,17 +478,11 @@ int exist (char* file, char* dest){
     dup2(pfd[0],0);
     close(pfd[0]);
     
-    read(0,codigo,BUFFER_SIZE);
+    read(0,codigo,BLOCK_FILE_SIZE);
     codigo[strlen(codigo)]=0;
     
     lista_ficheiros=readln(codigo,&n,"\n");
 
-    for(i=0;lista_ficheiros[i]!=NULL;i++){
-        if(!strcmp(lista_ficheiros[i],file)) return 1;
-    }
-    return 0;
+    return lista_ficheiros;
 }
-
-
-
 

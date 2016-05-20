@@ -19,6 +19,8 @@
 #define BUFFER_SIZE 128
 #define BLOCK_FILE_SIZE 4096
 
+void gc();
+char** listaPasta(char* dest);
 void delete (char* file);
 void restore (char* file,int pid_pipe);
 int backup(char* file,char* codigo,int caso);
@@ -28,7 +30,7 @@ void criaPastas ();
 void my_copy(char* orig, char *dest);
 void fim ();
 int verificaFicheiros(INFO info,char* destino_metadata,char* destino_data);
-void chooseComand(INFO info,char* comando,char*filename,int pid_pipe_fork, int caso_restore, int caso_backup);
-int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pid_pipe_fork);
+void chooseComand(INFO info,char* comando,char*filename,int pidProcesso,int pid_pipe_fork, int caso_restore, int caso_backup);
+int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* caso_restore,char* destino_data,char* destino_metadata,char* fileName,char* comando,int pidProcesso,int pid_pipe_fork);
 
 #endif

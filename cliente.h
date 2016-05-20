@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "info.h"
 
@@ -17,6 +18,8 @@
 
 void comandoBackup(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_pipe,char* file,char* comando);
 void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_pipe,char* file);
+void comandoDelete (INFO_PIPE infoPipe,int pid_pipe,char* file);
+void comandoGc(INFO_PIPE infoPipe,int pid_pipe);
 char* obterCodigo(char* file);
 int verificaCmd(char** cmd, int argc);
 int exist (char* file);

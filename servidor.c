@@ -144,7 +144,7 @@ int backup(char* file,char* codigo,int caso){
         strcat(destino_ficheiro_metadata,file);
 
         if(!fork()){
-            execlp("ln","ln",destino_codigo,destino_ficheiro_metadata,NULL);
+            execlp("ln","ln","-s",destino_codigo,destino_ficheiro_metadata,NULL);
             perror("error");
             _exit(1);
         }
@@ -368,11 +368,12 @@ int main(){
                         close(idFile);
                         }   
                     }
-                else {
+                    else {
                     
                     sair=0;
                     if(strcmp(info->comando,"backup")==0){
                         i=backup(info->NomeFicheiro,info->Codigo,caso_backup);
+                        usleep(100);
                         if(i)
                             kill(info->pidProcesso,SIGALRM);
                         else kill(info->pidProcesso,SIGUSR1);

@@ -1,57 +1,167 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <signal.h>
-
-#include "info.h"
-
-#define command_index 1
-#define BUFFER_SIZE 128
+#include "cliente.h"
 
 int acabou=0;
 
 /**
-  * A função alarmBackup, imprime o aviso que um ficheiro foi copiado. Provém de um sinal.
+  * A main responsável por aplicar todas as funções.
   *
   */
 
-void alarmBackup(){
-	printf("Copiado\n");
+int main(int argc, char** argv) {
+	int i,pid_pipe;
+	char destino[BUFFER_SIZE]; 
+	char destino_pipeAll[BUFFER_SIZE];
+	char pipName[BUFFER_SIZE];
+	INFO info; 
+	
+	strcpy(destino,getenv("HOME"));
+	strcat(destino,"/.Backup/pipe");
+
+	strcpy(destino_pipeAll,getenv("HOME"));
+	strcat(destino_pipeAll,"/.Backup/");
+
+	/*Casos invalidos*/
+	if(argc==1) {
+		printf("Falta o comando.\n");
+		return 1;
+	}
+
+	if( strcmp(argv[command_index],"restore")!=0 && !verificaCmd(argv+1,argc) ){
+		return 1;
+	}
+
+   	pid_pipe = open(destino, O_WRONLY);
+
+	mudarSinal();
+
+	for(i=2;argv[i]!=NULL;i++){
+		
+		if(!fork()){
+			info = initInfo(); 
+			INFO_PIPE infoPipe= initInfoPipe();
+			sprintf(pipName,"%d",getpid());
+			strcat(destino_pipeAll,pipName);
+			strcpy(infoPipe->pipeName,destino_pipeAll);
+			strcpy(infoPipe->comando,argv[command_index]);
+			strcpy(infoPipe->fileName,argv[i]);
+			mkfifo(destino_pipeAll,0666);
+
+			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
+
+				if(strcmp(argv[command_index],"backup")==0){
+
+					comandoBackup(infoPipe,info,destino_pipeAll,pid_pipe,argv[i],argv[1]);
+				}
+				else if(strcmp(argv[command_index],"restore")==0){
+
+					comandoRestore(infoPipe,info,destino_pipeAll,pid_pipe,argv[i]);
+				}
+			}
+			else printf("Ficheiro %s não existe.\n",argv[i]);
+			
+			unlink(destino_pipeAll);
+			_exit(0);
+		}
+	}
+
+	for(i=2;argv[i];i++){
+		wait(NULL);
+	}
+
+	close(pid_pipe);
+	return 0;
 }
 
-/**
-  * A função alarmBackup, imprime o aviso que um ficheiro foi recuperado. Provém de um sinal.
-  *
-  */
+void comandoBackup(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_pipe,char* file,char* comando){
+	int vazio,idFile,pid_pipe_fork,tamanho;
+	char buffer[BLOCK_FILE_SIZE];
 
-void alarmRestore(){
-	printf("Recuperado\n");
+	write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+	pid_pipe_fork=open(destino_pipeAll,O_WRONLY);
+
+	idFile = open(file,O_RDONLY);
+					
+	strcpy(info->Codigo,obterCodigo(file));
+	vazio=0;
+	while((tamanho=read(idFile,buffer,BLOCK_FILE_SIZE))>0){
+		vazio++;
+		memcpy(info->Ficheiro,buffer,tamanho);
+		info->tamanho=tamanho;
+		info->pidProcesso=getpid();
+		strcpy(info->NomeFicheiro,file);
+		strcpy(info->comando,comando);
+		info->fim=1;
+		write(pid_pipe_fork, info, sizeof(*info));
+		memset(buffer,0,BLOCK_FILE_SIZE);
+	}
+	if(vazio){
+		info->fim=0;
+		info->tamanho=0;
+		info->pidProcesso=getpid();
+		strcpy(info->NomeFicheiro,file);
+		strcpy(info->comando,comando);
+		write(pid_pipe_fork,info,sizeof(*info));
+
+		close(idFile);
+					
+		printf("%s : ",file);
+		pause();
+	}
+	else printf("Ficheiro Vazio.\n");
+	close(pid_pipe_fork);
 }
 
-/**
-  * A função alarmBackup, imprime o aviso que ocorreu um erro. Provém de um sinal.
-  *
-  */
 
-void alarmErro(){
-	printf("Erro\n");
+void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_pipe,char* file){
+	int pid_pipe_fork,tamanho_restore,idFile;
+
+	write(pid_pipe,infoPipe,sizeof(*infoPipe));
+
+	pid_pipe_fork=open(destino_pipeAll,O_RDONLY);
+
+	while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
+
+		if(tamanho_restore!=0){
+			if(info->fim){
+				idFile = open(file,O_WRONLY | O_CREAT | O_APPEND, 0666);
+				write(idFile,info->Ficheiro,info->tamanho);
+				close(idFile);
+			}
+		}
+		else close(pid_pipe_fork);
+	}
+
+	printf("%s : Recuperado.\n",file);
+
 }
 
-void alarmVoid(){
-	printf("Ja tem o backup realizado.\n");
+char* obterCodigo(char* file){
+	int pfd[2];
+	char codigo[BUFFER_SIZE];
+	char**fileName;
+	pipe(pfd);
+    if(!fork()){
+        close(pfd[0]);
+        dup2(pfd[1],1);
+        execlp("sha1sum","sha1sum",file,NULL);
+        perror("erro");
+        _exit(1);
+    }
+    wait(NULL);
+    
+    close(pfd[1]);
+    dup2(pfd[0],0);
+    close(pfd[0]);
+    
+    /* output do sha1sum */
+    read(0,codigo,BUFFER_SIZE);
+    codigo[strlen(codigo)-1]=0;
+    fileName=readln(codigo,"  ");
+
+    return fileName[0];
 }
 
-void alarmVoid2(){
-	printf("Nao existe backup do ficheiro.\n");
-}
-
-void alarmDelete(){
-	printf("Apagado\n");
-}
 
 /**
   * A função readln é uma função auxiliar, que dado uma String, separa-a em várias Strings, criando uma lista com essas Strings. A String original, é 
@@ -141,156 +251,52 @@ int verificaCmd(char** cmd, int argc){
 
 }
 
-char* obterCodigo(char* file){
-	int pfd[2];
-	char codigo[BUFFER_SIZE];
-	char**fileName;
-	pipe(pfd);
-    if(!fork()){
-        close(pfd[0]);
-        dup2(pfd[1],1);
-        execlp("sha1sum","sha1sum",file,NULL);
-        perror("erro");
-        _exit(1);
-    }
-    wait(NULL);
-    
-    close(pfd[1]);
-    dup2(pfd[0],0);
-    close(pfd[0]);
-    
-    /* output do sha1sum */
-    read(0,codigo,128);
-    codigo[strlen(codigo)-1]=0;
-    fileName=readln(codigo,"  ");
-
-    return fileName[0];
-}
-
-/**
-  * A main responsável por aplicar todas as funções.
-  *
-  */
-
-int main(int argc, char** argv) {
-	int i,tamanho,idFile,idFile2,tamanho_restore,vazio;
-	char buffer[4096];
-	char destino[BUFFER_SIZE]; 
-	char destino_pipeAll[BUFFER_SIZE];
-	strcpy(destino,getenv("HOME"));
-	strcat(destino,"/.Backup/pipe");
-
-	strcpy(destino_pipeAll,getenv("HOME"));
-	strcat(destino_pipeAll,"/.Backup/");
-
-	/*Casos invalidos*/
-	if(argc==1) {
-		printf("Falta o comando.\n");
-		return 1;
-	}
-
-	if( strcmp(argv[command_index],"restore")!=0 && !verificaCmd(argv+1,argc) ){
-		return 1;
-	}
-
-   	int pid_pipe = open(destino, O_WRONLY);
-
-   	INFO info; 
-
+void mudarSinal (){
 	signal(SIGALRM,alarmBackup);
 	signal(SIGINT,alarmRestore);
 	signal(SIGHUP,alarmErro); 
 	signal(SIGUSR1,alarmVoid);
 	signal(SIGUSR2,alarmDelete);
 	signal(SIGFPE,alarmVoid2);
+ }
 
-	char pipName[BUFFER_SIZE];
-	int pid_pipe_fork;
 
-	for(i=2;argv[i]!=NULL;i++){
-		
-		if(!fork()){
-			info = initInfo(); 
-			INFO_PIPE infoPipe= initInfoPipe();
-			sprintf(pipName,"%d",getpid());
-			strcat(destino_pipeAll,pipName);
-			strcpy(infoPipe->pipeName,destino_pipeAll);
-			strcpy(infoPipe->comando,argv[command_index]);
-			strcpy(infoPipe->fileName,argv[i]);
-			mkfifo(destino_pipeAll,0666);
+/**
+  * A função alarmBackup, imprime o aviso que um ficheiro foi copiado. Provém de um sinal.
+  *
+  */
 
-			if(strcmp(argv[command_index],"restore")==0 || exist(argv[i])){ 
-
-				if(strcmp(argv[command_index],"backup")==0){
-
-					write(pid_pipe,infoPipe,sizeof(*infoPipe));
-
-					pid_pipe_fork=open(destino_pipeAll,O_WRONLY);
-
-					idFile = open(argv[i],O_RDONLY);
-					
-					strcpy(info->Codigo,obterCodigo(argv[i]));
-					vazio=0;
-					while((tamanho=read(idFile,buffer,4096))>0){
-						vazio++;
-						memcpy(info->Ficheiro,buffer,tamanho);
-						info->tamanho=tamanho;
-						info->pidProcesso=getpid();
-						strcpy(info->NomeFicheiro,argv[i]);
-						strcpy(info->comando,argv[1]);
-						info->fim=1;
-						write(pid_pipe_fork, info, sizeof(*info));
-						memset(buffer,0,4096);
-					}
-					if(vazio){
-					info->fim=0;
-					info->tamanho=0;
-					info->pidProcesso=getpid();
-					strcpy(info->NomeFicheiro,argv[i]);
-					strcpy(info->comando,argv[1]);
-					write(pid_pipe_fork,info,sizeof(*info));
-
-					close(idFile);
-					
-					printf("%s : ",argv[i]);
-					pause();
-					}
-					else printf("Ficheiro Vazio.\n");
-					close(pid_pipe_fork);	
-				}
-				else if(strcmp(argv[command_index],"restore")==0){
-
-					info = initInfo(); 
-					write(pid_pipe,infoPipe,sizeof(*infoPipe));
-
-					pid_pipe_fork=open(destino_pipeAll,O_RDONLY);
-
-					while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
-
-						if(tamanho_restore!=0){
-							if(info->fim){
-								idFile2 = open(argv[i],O_WRONLY | O_CREAT | O_APPEND, 0666);
-								write(idFile2,info->Ficheiro,info->tamanho);
-								close(idFile2);
-							}
-						}
-						else close(pid_pipe_fork);
-					}
-
-					printf("%s : Recuperado.\n",argv[i]);
-				}
-			}
-			else printf("Ficheiro %s não existe.\n",argv[i]);
-			
-			unlink(destino_pipeAll);
-			_exit(0);
-		}
-	}
-
-	for(i=2;argv[i];i++){
-		wait(NULL);
-	}
-
-	close(pid_pipe);
-	return 0;
+void alarmBackup(){
+	printf("Copiado\n");
 }
+
+/**
+  * A função alarmBackup, imprime o aviso que um ficheiro foi recuperado. Provém de um sinal.
+  *
+  */
+
+void alarmRestore(){
+	printf("Recuperado\n");
+}
+
+/**
+  * A função alarmBackup, imprime o aviso que ocorreu um erro. Provém de um sinal.
+  *
+  */
+
+void alarmErro(){
+	printf("Erro\n");
+}
+
+void alarmVoid(){
+	printf("Ja tem o backup realizado.\n");
+}
+
+void alarmVoid2(){
+	printf("Nao existe backup do ficheiro.\n");
+}
+
+void alarmDelete(){
+	printf("Apagado\n");
+}
+

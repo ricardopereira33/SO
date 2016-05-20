@@ -107,7 +107,7 @@ int checkComandAndFile(INFO info,int sair,int* verifica,int* caso_backup,int* ca
         else *caso_restore=0;
         *verifica=0; 
     }
-                    
+
     if(info->fim  && (*caso_backup==2 || *caso_backup==3 || *caso_backup==4) && !strcmp(info->comando,"backup")){
         if(*caso_backup!=4){
             sprintf(destino_file,"%s/%s", destino_data,info->NomeFicheiro);
@@ -134,11 +134,13 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
                 kill(pidProcesso,SIGALRM);
             else kill(pidProcesso,SIGUSR1);
         }
-
+        
         if(strcmp(comando,"restore")==0){
-            if(caso_restore)
+            if(caso_restore){
+                kill(pidProcesso,SIGCONT);
                 restore(fileName,pid_pipe_fork);
-            else kill(pidProcesso,SIGINT);
+            }
+            else kill(pidProcesso,SIGFPE);
         }
 
         if(strcmp(comando,"delete")==0){
@@ -149,8 +151,10 @@ void chooseComand(INFO info,char* comando,char*fileName,int pidProcesso,int pid_
         }
 
         if(strcmp(comando,"gc")==0){
-            gc();
-            kill(pidProcesso,SIGUSR2);
+            i=gc();
+            if(i)
+                kill(pidProcesso,SIGUSR2);
+            else kill(pidProcesso,SIGHUP);
         }
 }
 
@@ -300,7 +304,7 @@ int delete (char* file){
     }
 }
 
-void gc(){
+int gc(){
     char destino_data[BUFFER_SIZE];
     char destino_metadata[BUFFER_SIZE];
     char ficheiro[BUFFER_SIZE];
@@ -316,18 +320,18 @@ void gc(){
     char** lista_data;
     char** lista_metadata;
     char** lista_path;
-    int i,j,tamanho,n,notDelete;
+    int i,j,tamanho,n,notDelete,totalDelete=0;
 
     lista_data=listaPasta(destino_data);
     lista_metadata=listaPasta(destino_metadata);
 
-    for(i=0;lista_data[i]!=NULL;i++){
+    for(i=0;lista_data[i+1]!=NULL;i++){
         ficheiro_data=malloc(sizeof(char)*BUFFER_SIZE);
         strcpy(ficheiro_data,getenv("HOME"));
         strcat(ficheiro_data,"/.Backup/data/");
         strcat(ficheiro_data,lista_data[i]);
         
-        for(j=0;lista_metadata[j]!=NULL;j++){
+        for(j=0;lista_metadata[j+1]!=NULL;j++){
             ficheiro_metadata=malloc(sizeof(char)*BUFFER_SIZE);
             strcpy(ficheiro_metadata,destino_metadata);
             strcat(ficheiro_metadata,lista_metadata[j]);
@@ -345,11 +349,16 @@ void gc(){
             if(notDelete>0) break;
         }
 
-        if(notDelete==0) unlink(ficheiro_data);
+        if(notDelete==0){
+            unlink(ficheiro_data);
+            totalDelete++;
+        }
         notDelete=0;
         free(ficheiro_data);
         ficheiro_data=NULL;
     }
+    if(totalDelete>0) return 1;
+    else return 0;
 }
 
 

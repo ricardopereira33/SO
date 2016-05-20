@@ -33,5 +33,6 @@ void alarmVoid2();
 void alarmDelete();
 void alarmVoid3();
 void alarmJaExiste();
+void alaramVoid3();
 
 #endif

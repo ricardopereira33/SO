@@ -19,7 +19,7 @@
 #define BUFFER_SIZE 128
 #define BLOCK_FILE_SIZE 4096
 
-void gc();
+int gc();
 char** listaPasta(char* dest);
 int  delete (char* file);
 void restore (char* file,int pid_pipe);

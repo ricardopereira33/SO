@@ -135,20 +135,25 @@ void comandoRestore(INFO_PIPE infoPipe, INFO info,char* destino_pipeAll,int pid_
 
 	pid_pipe_fork=open(destino_pipeAll,O_RDONLY);
 
-	while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
+	pause();
+	if(!existe){ 
 
-		if(tamanho_restore!=0){
-			if(info->fim){
-				idFile = open(file,O_WRONLY | O_CREAT | O_APPEND, 0666);
-				write(idFile,info->Ficheiro,info->tamanho);
-				close(idFile);
+		while((tamanho_restore=read(pid_pipe_fork,info,sizeof(*info)))>0){
+
+			if(tamanho_restore!=0){
+				if(info->fim){
+					idFile = open(file,O_WRONLY | O_CREAT | O_APPEND, 0666);
+					write(idFile,info->Ficheiro,info->tamanho);
+					close(idFile);
+				}
 			}
+			else close(pid_pipe_fork);
 		}
-		else close(pid_pipe_fork);
+
+		printf("%s : Recuperado.\n",file);
 	}
-
-	printf("%s : Recuperado.\n",file);
-
+	else printf("Não existe backup do ficheiro.\n");
+	existe=0;
 }
 
 void comandoDelete (INFO_PIPE infoPipe,int pid_pipe,char* file){
@@ -289,6 +294,7 @@ void mudarSinal (){
 	signal(SIGUSR1,alarmVoid);
 	signal(SIGUSR2,alarmDelete);
 	signal(SIGFPE,alarmVoid2);
+	signal(SIGCONT,alarmVoid3);
  }
 
 
@@ -324,7 +330,10 @@ void alarmVoid(){
 }
 
 void alarmVoid2(){
-	printf("Nao existe backup do ficheiro.\n");
+	existe++;
+}
+void alarmVoid3(){
+	return;
 }
 
 void alarmDelete(){
